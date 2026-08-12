@@ -214,6 +214,29 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 				background: var(--red);
 			}
 
+			.locate-button {
+				position: relative;
+				isolation: isolate;
+				width: 100%;
+				min-height: 3.35rem;
+				border-color: color-mix(in srgb, var(--red), var(--line) 20%);
+				background:
+					linear-gradient(135deg, color-mix(in srgb, var(--red), #ffffff 6%), var(--accent-dark));
+				box-shadow:
+					0 16px 32px color-mix(in srgb, var(--red), transparent 72%),
+					inset 0 1px 0 rgba(255, 248, 232, 0.26);
+			}
+
+			.locate-button::after {
+				content: '';
+				position: absolute;
+				inset: 0.34rem;
+				z-index: -1;
+				border: 1px solid rgba(255, 248, 232, 0.28);
+				border-radius: inherit;
+				opacity: 0.72;
+			}
+
 			.weather-strip {
 				display: grid;
 				grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -240,6 +263,55 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 				margin-top: 0.3rem;
 				font-size: 1.08rem;
 				line-height: 1.1;
+			}
+
+			.globe-card {
+				display: grid;
+				grid-template-columns: minmax(6.5rem, 0.72fr) minmax(0, 1fr);
+				gap: 0.72rem;
+				align-items: center;
+				padding: 0.85rem;
+				border: 1px solid var(--line);
+				border-radius: var(--radius);
+				background:
+					radial-gradient(circle at 28% 20%, rgba(142, 208, 214, 0.18), transparent 34%),
+					var(--panel);
+			}
+
+			.globe-card canvas {
+				display: block;
+				width: 100%;
+				max-width: 8.75rem;
+				aspect-ratio: 1;
+				border-radius: 999px;
+				justify-self: center;
+				box-shadow: 0 14px 30px rgba(18, 64, 82, 0.18);
+			}
+
+			.globe-card .locate-button {
+				grid-column: 1 / -1;
+			}
+
+			.globe-copy {
+				display: grid;
+				gap: 0.38rem;
+			}
+
+			.globe-copy span {
+				color: var(--muted);
+				font-size: 0.78rem;
+				font-weight: 700;
+			}
+
+			.globe-copy strong {
+				font-size: 1.28rem;
+				line-height: 1;
+			}
+
+			.globe-copy small {
+				color: var(--ink-soft);
+				font-size: 0.82rem;
+				line-height: 1.35;
 			}
 
 			.note-grid {
@@ -278,7 +350,8 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 			@media (max-width: 560px) {
 				.metric-grid,
 				.control-row,
-				.weather-strip {
+				.weather-strip,
+				.globe-card {
 					grid-template-columns: 1fr;
 				}
 			}
@@ -311,6 +384,16 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 						</div>
 					</div>
 
+					<div class="globe-card" aria-label="Location globe">
+						<canvas id="globeCanvas" width="280" height="280"></canvas>
+						<div class="globe-copy">
+							<span>球形定位</span>
+							<strong id="globeTitle">等待定位</strong>
+							<small id="globeDetail">允许定位后，会在地球上标记当前位置，并把天气效果同步到全站。</small>
+						</div>
+						<button class="lab-button locate-button" type="button" id="locateButton">授权定位 · 获取当前位置和天气</button>
+					</div>
+
 					<div class="metric-grid" aria-label="Moon position metrics">
 						<div class="metric">
 							<span>方位 Azimuth</span>
@@ -336,7 +419,6 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 					<div class="control-card">
 						<div class="button-row">
-							<button class="lab-button" type="button" id="locateButton">获取当前位置和天气</button>
 							<button class="lab-button secondary" type="button" id="nowButton">回到现在</button>
 							<a class="lab-button secondary" href={`${base}/game/`}>去游戏页</a>
 						</div>
@@ -376,6 +458,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 							<strong id="cloudValue">--</strong>
 						</div>
 					</div>
+
 				</aside>
 			</section>
 
@@ -399,6 +482,8 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 		<script>
 			const canvas = document.querySelector('#moonCanvas');
 			const ctx = canvas?.getContext('2d');
+			const globeCanvas = document.querySelector('#globeCanvas');
+			const globeCtx = globeCanvas?.getContext('2d');
 			const todayChip = document.querySelector('#todayChip');
 			const locationChip = document.querySelector('#locationChip');
 			const weatherChip = document.querySelector('#weatherChip');
@@ -421,7 +506,10 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 			const weatherCondition = document.querySelector('#weatherCondition');
 			const temperatureValue = document.querySelector('#temperatureValue');
 			const cloudValue = document.querySelector('#cloudValue');
+			const globeTitle = document.querySelector('#globeTitle');
+			const globeDetail = document.querySelector('#globeDetail');
 			const synodicMonth = 29.530588853;
+			const weatherStorageKey = 'blog-weather-context';
 			const fallbackLocation = {
 				lat: 39.9042,
 				lon: 116.4074,
@@ -602,6 +690,119 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 				ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 			};
 
+			const resizeGlobeCanvas = () => {
+				if (!globeCanvas || !globeCtx) return;
+				const rect = globeCanvas.getBoundingClientRect();
+				const size = Math.round(rect.width || 220);
+				const dpr = Math.min(2, window.devicePixelRatio || 1);
+				globeCanvas.width = Math.round(size * dpr);
+				globeCanvas.height = Math.round(size * dpr);
+				globeCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+			};
+
+			const projectedGlobePoint = (lat, lon, rotation, radius) => {
+				const phi = rad(lat);
+				const lambda = rad(lon) + rotation;
+				return {
+					x: radius * Math.cos(phi) * Math.sin(lambda),
+					y: -radius * Math.sin(phi),
+					z: radius * Math.cos(phi) * Math.cos(lambda),
+				};
+			};
+
+			const drawGlobe = () => {
+				if (!globeCanvas || !globeCtx) return;
+				const width = globeCanvas.getBoundingClientRect().width || 260;
+				const height = width;
+				const cx = width / 2;
+				const cy = height / 2;
+				const radius = width * 0.43;
+				const rotation = rad(-activeLocation.lon);
+				globeCtx.clearRect(0, 0, width, height);
+
+				const glow = globeCtx.createRadialGradient(cx - radius * 0.25, cy - radius * 0.28, radius * 0.08, cx, cy, radius * 1.28);
+				glow.addColorStop(0, '#9bd3ee');
+				glow.addColorStop(0.45, '#236d8f');
+				glow.addColorStop(1, '#102c39');
+				globeCtx.fillStyle = glow;
+				globeCtx.beginPath();
+				globeCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+				globeCtx.fill();
+
+				globeCtx.save();
+				globeCtx.beginPath();
+				globeCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+				globeCtx.clip();
+				globeCtx.strokeStyle = 'rgba(255, 248, 232, 0.28)';
+				globeCtx.lineWidth = 1;
+
+				for (let lat = -60; lat <= 60; lat += 30) {
+					globeCtx.beginPath();
+					for (let lon = -180; lon <= 180; lon += 4) {
+						const point = projectedGlobePoint(lat, lon, rotation, radius);
+						const x = cx + point.x;
+						const y = cy + point.y;
+						if (lon === -180) globeCtx.moveTo(x, y);
+						else globeCtx.lineTo(x, y);
+					}
+					globeCtx.stroke();
+				}
+
+				for (let lon = -150; lon <= 180; lon += 30) {
+					globeCtx.beginPath();
+					for (let lat = -86; lat <= 86; lat += 3) {
+						const point = projectedGlobePoint(lat, lon, rotation, radius);
+						const x = cx + point.x;
+						const y = cy + point.y;
+						if (lat === -86) globeCtx.moveTo(x, y);
+						else globeCtx.lineTo(x, y);
+					}
+					globeCtx.stroke();
+				}
+
+				const landColor = 'rgba(118, 147, 75, 0.72)';
+				[
+					{ lat: 35, lon: 100, rx: 42, ry: 24 },
+					{ lat: 8, lon: 20, rx: 34, ry: 21 },
+					{ lat: 48, lon: -100, rx: 38, ry: 22 },
+					{ lat: -18, lon: -60, rx: 28, ry: 34 },
+					{ lat: -25, lon: 135, rx: 28, ry: 16 },
+				].forEach((land) => {
+					const point = projectedGlobePoint(land.lat, land.lon, rotation, radius);
+					if (point.z < -radius * 0.18) return;
+					globeCtx.fillStyle = landColor;
+					globeCtx.beginPath();
+					globeCtx.ellipse(cx + point.x, cy + point.y, land.rx, land.ry, rad(land.lon / 4), 0, Math.PI * 2);
+					globeCtx.fill();
+				});
+
+				const marker = projectedGlobePoint(activeLocation.lat, activeLocation.lon, rotation, radius);
+				const markerVisible = marker.z > -radius * 0.08;
+				if (markerVisible) {
+					const mx = cx + marker.x;
+					const my = cy + marker.y;
+					globeCtx.strokeStyle = 'rgba(255, 248, 232, 0.82)';
+					globeCtx.lineWidth = 2;
+					globeCtx.beginPath();
+					globeCtx.arc(mx, my, 15, 0, Math.PI * 2);
+					globeCtx.stroke();
+					globeCtx.fillStyle = '#c94338';
+					globeCtx.beginPath();
+					globeCtx.arc(mx, my, 5.4, 0, Math.PI * 2);
+					globeCtx.fill();
+				}
+				globeCtx.restore();
+
+				globeCtx.strokeStyle = 'rgba(255, 248, 232, 0.34)';
+				globeCtx.lineWidth = 1.2;
+				globeCtx.beginPath();
+				globeCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+				globeCtx.stroke();
+
+				if (globeTitle) globeTitle.textContent = activeLocation.source === 'browser' ? '已标记当前位置' : activeLocation.label;
+				if (globeDetail) globeDetail.textContent = `${activeLocation.lat.toFixed(4)}°, ${activeLocation.lon.toFixed(4)}° · ${activeLocation.source === 'browser' ? '天气特效已同步到全站' : '点击授权按钮后可同步真实天气'}`;
+			};
+
 			const drawMoonDisk = (x, y, radius, age) => {
 				if (!ctx) return;
 				const phase = age / synodicMonth;
@@ -763,6 +964,18 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 				if (weatherChip) weatherChip.textContent = `${condition} · 风 ${current.wind_speed_10m ?? '--'}${units.wind_speed_10m ?? 'km/h'}`;
 			};
 
+			const publishWeatherContext = () => {
+				if (!weatherData?.current) return;
+				const context = {
+					location: activeLocation,
+					current: weatherData.current,
+					current_units: weatherData.current_units ?? {},
+					updatedAt: new Date().toISOString(),
+				};
+				localStorage.setItem(weatherStorageKey, JSON.stringify(context));
+				window.dispatchEvent(new CustomEvent('blog-weather-updated', { detail: context }));
+			};
+
 			const fetchWeather = async () => {
 				if (!Number.isFinite(activeLocation.lat) || !Number.isFinite(activeLocation.lon)) return;
 				if (weatherChip) weatherChip.textContent = 'Fetching weather...';
@@ -775,12 +988,14 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 				if (!response.ok) throw new Error(`Weather request failed: ${response.status}`);
 				weatherData = await response.json();
 				updateWeatherText();
+				publishWeatherContext();
 			};
 
 			const applyLocation = (location) => {
 				activeLocation = location;
 				if (latInput) latInput.value = location.lat.toFixed(4);
 				if (lonInput) lonInput.value = location.lon.toFixed(4);
+				drawGlobe();
 				draw();
 			};
 
@@ -833,6 +1048,8 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 				applyLocation(fallbackLocation);
 				updateWeatherText();
 				resizeCanvas();
+				resizeGlobeCanvas();
+				drawGlobe();
 				draw();
 			};
 
@@ -842,18 +1059,22 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 				const next = Number(latInput.value);
 				if (!Number.isFinite(next)) return;
 				activeLocation = { ...activeLocation, lat: next, label: '手动坐标', source: 'manual' };
+				drawGlobe();
 				draw();
 			});
 			lonInput?.addEventListener('input', () => {
 				const next = Number(lonInput.value);
 				if (!Number.isFinite(next)) return;
 				activeLocation = { ...activeLocation, lon: next, label: '手动坐标', source: 'manual' };
+				drawGlobe();
 				draw();
 			});
 			locateButton?.addEventListener('click', requestLocation);
 			nowButton?.addEventListener('click', setNow);
 			window.addEventListener('resize', () => {
 				resizeCanvas();
+				resizeGlobeCanvas();
+				drawGlobe();
 				draw();
 			});
 

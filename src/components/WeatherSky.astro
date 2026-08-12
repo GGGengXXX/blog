@@ -1,0 +1,295 @@
+<div class="weather-sky" aria-hidden="true">
+	<canvas id="weatherSkyCanvas"></canvas>
+	<div class="weather-sky__label" id="weatherSkyLabel">Sky idle</div>
+</div>
+
+<script>
+	const canvas = document.querySelector('#weatherSkyCanvas');
+	const label = document.querySelector('#weatherSkyLabel');
+	const ctx = canvas?.getContext('2d');
+	const storageKey = 'blog-weather-context';
+	let width = 0;
+	let height = 0;
+	let dpr = 1;
+	let animationFrame = 0;
+	let weather = null;
+	let particles = [];
+
+	const weatherCodeText = {
+		0: '晴朗',
+		1: '大致晴朗',
+		2: '局部多云',
+		3: '阴天',
+		45: '雾',
+		48: '雾凇',
+		51: '小毛毛雨',
+		53: '毛毛雨',
+		55: '较强毛毛雨',
+		61: '小雨',
+		63: '中雨',
+		65: '大雨',
+		71: '小雪',
+		73: '中雪',
+		75: '大雪',
+		80: '阵雨',
+		81: '较强阵雨',
+		82: '强阵雨',
+		95: '雷雨',
+		96: '雷雨伴冰雹',
+		99: '强雷雨伴冰雹',
+	};
+
+	const seeded = (index, salt = 1) => {
+		const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
+		return value - Math.floor(value);
+	};
+
+	const weatherKind = (code) => {
+		if ([45, 48].includes(code)) return 'fog';
+		if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95) return 'rain';
+		if (code >= 71 && code <= 77) return 'snow';
+		if (code >= 2 && code <= 3) return 'cloud';
+		return 'clear';
+	};
+
+	const readWeather = () => {
+		try {
+			const raw = localStorage.getItem(storageKey);
+			if (!raw) return null;
+			const parsed = JSON.parse(raw);
+			if (!parsed?.current) return null;
+			return parsed;
+		} catch {
+			return null;
+		}
+	};
+
+	const resize = () => {
+		if (!canvas || !ctx) return;
+		dpr = Math.min(window.devicePixelRatio || 1, 2);
+		width = window.innerWidth;
+		height = window.innerHeight;
+		canvas.width = Math.round(width * dpr);
+		canvas.height = Math.round(height * dpr);
+		canvas.style.width = `${width}px`;
+		canvas.style.height = `${height}px`;
+		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+	};
+
+	const initParticles = () => {
+		const count = Math.min(150, Math.max(70, Math.round((width * height) / 14500)));
+		particles = Array.from({ length: count }, (_, index) => ({
+			x: seeded(index, 10) * width,
+			y: seeded(index, 20) * height,
+			speed: 0.35 + seeded(index, 30) * 0.9,
+			size: 0.8 + seeded(index, 40) * 2.4,
+			phase: seeded(index, 50) * Math.PI * 2,
+		}));
+	};
+
+	const drawClear = (time) => {
+		if (!ctx) return;
+		const sunX = width * 0.84 + Math.sin(time * 0.00005) * 24;
+		const sunY = height * 0.14 + Math.cos(time * 0.00006) * 12;
+		const glow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, Math.max(width, height) * 0.42);
+		glow.addColorStop(0, 'rgba(255, 205, 118, 0.18)');
+		glow.addColorStop(0.34, 'rgba(255, 205, 118, 0.07)');
+		glow.addColorStop(1, 'rgba(255, 205, 118, 0)');
+		ctx.fillStyle = glow;
+		ctx.fillRect(0, 0, width, height);
+		particles.slice(0, 42).forEach((particle, index) => {
+			const x = (particle.x + time * 0.006 * particle.speed) % width;
+			const y = particle.y * 0.78 + Math.sin(time * 0.001 + particle.phase) * 8;
+			ctx.fillStyle = `rgba(255, 248, 232, ${0.05 + seeded(index, 70) * 0.08})`;
+			ctx.beginPath();
+			ctx.arc(x, y, particle.size * 0.55, 0, Math.PI * 2);
+			ctx.fill();
+		});
+	};
+
+	const drawClouds = (time, density = 1) => {
+		if (!ctx) return;
+		for (let i = 0; i < 9; i += 1) {
+			const baseX = (seeded(i, 80) * width + time * (0.006 + i * 0.0008)) % (width + 360) - 180;
+			const baseY = height * (0.08 + seeded(i, 90) * 0.36);
+			const scale = 0.75 + seeded(i, 100) * 1.55;
+			const alpha = (0.06 + seeded(i, 110) * 0.08) * density;
+			ctx.fillStyle = `rgba(246, 242, 224, ${alpha})`;
+			for (let j = 0; j < 5; j += 1) {
+				ctx.beginPath();
+				ctx.ellipse(
+					baseX + j * 54 * scale,
+					baseY + Math.sin(time * 0.00045 + i + j) * 8,
+					64 * scale,
+					18 * scale,
+					0,
+					0,
+					Math.PI * 2,
+				);
+				ctx.fill();
+			}
+		}
+	};
+
+	const drawRain = (time, intensity = 1) => {
+		if (!ctx) return;
+		drawClouds(time, 1.25);
+		ctx.strokeStyle = `rgba(94, 153, 174, ${0.22 + intensity * 0.18})`;
+		ctx.lineWidth = 1.1;
+		particles.forEach((particle, index) => {
+			const x = (particle.x + time * 0.02 * particle.speed + index * 13) % (width + 80) - 40;
+			const y = (particle.y + time * 0.38 * particle.speed) % (height + 80) - 40;
+			ctx.beginPath();
+			ctx.moveTo(x, y);
+			ctx.lineTo(x - 10, y + 28 + intensity * 10);
+			ctx.stroke();
+		});
+	};
+
+	const drawSnow = (time) => {
+		if (!ctx) return;
+		drawClouds(time, 0.8);
+		particles.forEach((particle) => {
+			const x = (particle.x + Math.sin(time * 0.001 + particle.phase) * 26) % width;
+			const y = (particle.y + time * 0.055 * particle.speed) % (height + 20) - 10;
+			ctx.fillStyle = `rgba(255, 255, 248, ${0.24 + particle.speed * 0.18})`;
+			ctx.beginPath();
+			ctx.arc(x, y, particle.size * 0.72, 0, Math.PI * 2);
+			ctx.fill();
+		});
+	};
+
+	const drawFog = (time) => {
+		if (!ctx) return;
+		for (let i = 0; i < 7; i += 1) {
+			const y = height * (0.18 + i * 0.11);
+			const x = ((time * (0.006 + i * 0.001) + seeded(i, 150) * width) % (width + 260)) - 130;
+			ctx.fillStyle = `rgba(238, 238, 220, ${0.055 + i * 0.008})`;
+			ctx.beginPath();
+			ctx.ellipse(x, y, width * 0.42, 24 + i * 3, 0, 0, Math.PI * 2);
+			ctx.fill();
+		}
+	};
+
+	const drawLightning = (time) => {
+		if (!ctx || Math.sin(time * 0.006) < 0.985) return;
+		ctx.fillStyle = 'rgba(255, 246, 180, 0.12)';
+		ctx.fillRect(0, 0, width, height);
+	};
+
+	const updateLabel = (context) => {
+		if (!label) return;
+		if (!context?.current) {
+			label.textContent = 'Sky waiting for Lab location';
+			return;
+		}
+		const code = context.current.weather_code ?? 0;
+		const temp = Math.round(context.current.temperature_2m ?? 0);
+		label.textContent = `${weatherCodeText[code] ?? '天气'} · ${temp}°C`;
+	};
+
+	const draw = (time) => {
+		if (!ctx) return;
+		const nextWeather = readWeather();
+		if (JSON.stringify(nextWeather?.current ?? null) !== JSON.stringify(weather?.current ?? null)) {
+			weather = nextWeather;
+			updateLabel(weather);
+		}
+		ctx.clearRect(0, 0, width, height);
+		const code = weather?.current?.weather_code ?? 0;
+		const kind = weatherKind(code);
+		const cloudCover = (weather?.current?.cloud_cover ?? 18) / 100;
+		if (kind === 'rain') drawRain(time, code >= 80 || code >= 95 ? 1.35 : 0.82);
+		else if (kind === 'snow') drawSnow(time);
+		else if (kind === 'fog') drawFog(time);
+		else {
+			drawClear(time);
+			drawClouds(time, kind === 'cloud' ? 0.7 + cloudCover : 0.35);
+		}
+		if (code >= 95) drawLightning(time);
+		animationFrame = requestAnimationFrame(draw);
+	};
+
+	if (canvas && ctx) {
+		resize();
+		initParticles();
+		weather = readWeather();
+		updateLabel(weather);
+		animationFrame = requestAnimationFrame(draw);
+		window.addEventListener('resize', () => {
+			resize();
+			initParticles();
+		});
+		window.addEventListener('storage', (event) => {
+			if (event.key === storageKey) {
+				weather = readWeather();
+				updateLabel(weather);
+			}
+		});
+		window.addEventListener('blog-weather-updated', () => {
+			weather = readWeather();
+			updateLabel(weather);
+		});
+		window.addEventListener('pagehide', () => cancelAnimationFrame(animationFrame));
+	}
+</script>
+
+<style>
+	.weather-sky {
+		position: fixed;
+		inset: 0;
+		z-index: 0;
+		overflow: hidden;
+		pointer-events: none;
+		opacity: 0.78;
+	}
+
+	.weather-sky canvas {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+	}
+
+	.weather-sky__label {
+		position: fixed;
+		right: 1rem;
+		bottom: 1rem;
+		max-width: min(16rem, calc(100vw - 2rem));
+		padding: 0.42rem 0.58rem;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--panel-strong) 78%, transparent);
+		color: var(--muted);
+		font-size: 0.72rem;
+		font-weight: 700;
+		backdrop-filter: blur(12px);
+		opacity: 0;
+		transform: translateY(0.3rem);
+		transition:
+			opacity 0.18s ease,
+			transform 0.18s ease;
+	}
+
+	body:hover .weather-sky__label {
+		opacity: 1;
+		transform: translateY(0);
+	}
+
+	body > header,
+	body > main,
+	body > footer {
+		position: relative;
+		z-index: 1;
+	}
+
+	@media (max-width: 720px) {
+		.weather-sky {
+			opacity: 0.6;
+		}
+
+		.weather-sky__label {
+			display: none;
+		}
+	}
+</style>

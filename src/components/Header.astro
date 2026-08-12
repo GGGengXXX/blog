@@ -2,10 +2,12 @@
 import { SITE_TITLE } from '../consts';
 import HeaderLink from './HeaderLink.astro';
 import PreferenceControls from './PreferenceControls.astro';
+import WeatherSky from './WeatherSky.astro';
 
 const base = import.meta.env.BASE_URL;
 ---
 
+<WeatherSky />
 <header>
 	<nav>
 		<a class="brand" href={base} aria-label={SITE_TITLE}>
