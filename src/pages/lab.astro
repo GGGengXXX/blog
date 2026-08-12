@@ -10,76 +10,38 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 <!doctype html>
 <html lang="zh-CN">
 	<head>
-		<BaseHead title={`实验室 | ${SITE_TITLE}`} description="Interactive experiments for notes and essays." />
+		<BaseHead title={`实验室 | ${SITE_TITLE}`} description="Today moon position, local sky, and weather lab." />
 		<style>
 			.lab-shell {
 				display: grid;
 				gap: 1rem;
 			}
 
-			.lab-hero {
+			.sky-lab {
 				display: grid;
-				grid-template-columns: minmax(0, 1fr) minmax(260px, 0.34fr);
+				grid-template-columns: minmax(0, 1fr) minmax(320px, 0.36fr);
 				gap: 1rem;
 				align-items: stretch;
 			}
 
-			.lab-title,
-			.lab-note {
-				padding: clamp(1.25rem, 3vw, 2rem);
-			}
-
-			.lab-title p {
-				max-width: 760px;
-				color: var(--ink-soft);
-				font-size: clamp(1.04rem, 2vw, 1.24rem);
-			}
-
-			.lab-note {
-				display: flex;
-				flex-direction: column;
-				justify-content: space-between;
-				background: var(--inverse);
-				color: var(--inverse-text);
-			}
-
-			.lab-note p {
-				color: var(--inverse-muted);
-			}
-
-			.lab-note a {
-				color: var(--inverse-text);
-			}
-
-			.lab-note .button-link.secondary {
-				color: var(--ink);
-			}
-
-			.moon-lab {
-				display: grid;
-				grid-template-columns: minmax(0, 1fr) minmax(280px, 0.34fr);
-				gap: 1rem;
-				align-items: stretch;
-			}
-
-			.stage {
+			.sky-stage {
 				position: relative;
-				min-height: 620px;
+				min-height: 680px;
 				overflow: hidden;
 				background:
-					linear-gradient(145deg, rgba(12, 16, 21, 0.96), rgba(28, 29, 24, 0.96)),
-					#101215;
+					radial-gradient(circle at 72% 12%, rgba(255, 210, 128, 0.18), transparent 28%),
+					linear-gradient(155deg, #0e171d 0%, #162323 54%, #22271d 100%);
 			}
 
-			.stage canvas {
+			.sky-stage canvas {
 				display: block;
 				width: 100%;
 				height: 100%;
-				min-height: 620px;
+				min-height: 680px;
 				border-radius: var(--radius);
 			}
 
-			.stage-label {
+			.sky-label {
 				position: absolute;
 				left: 1rem;
 				top: 1rem;
@@ -90,54 +52,133 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 				pointer-events: none;
 			}
 
-			.stage-label span {
-				padding: 0.35rem 0.6rem;
+			.sky-label span {
+				padding: 0.34rem 0.58rem;
 				border: 1px solid rgba(255, 248, 232, 0.18);
 				border-radius: 999px;
 				background: rgba(255, 248, 232, 0.08);
-				font-size: 0.8rem;
+				font-size: 0.78rem;
 				font-weight: 700;
 			}
 
 			.lab-controls {
-				display: flex;
-				flex-direction: column;
-				justify-content: space-between;
-				gap: 1rem;
-				padding: clamp(1rem, 3vw, 1.5rem);
-			}
-
-			.phase-readout strong {
-				display: block;
-				margin: 0.2rem 0 0.7rem;
-				font-size: clamp(2rem, 5vw, 4rem);
-				line-height: 0.98;
-			}
-
-			.phase-readout p {
-				color: var(--muted);
-			}
-
-			.control-group {
 				display: grid;
-				gap: 0.7rem;
-				padding: 0.95rem;
+				gap: 1rem;
+				align-content: start;
+				padding: clamp(1rem, 2.4vw, 1.35rem);
+			}
+
+			.readout-head {
+				display: grid;
+				gap: 0.55rem;
+			}
+
+			.readout-head h1 {
+				margin: 0;
+				font-size: clamp(2.2rem, 5vw, 4.7rem);
+				line-height: 0.94;
+				letter-spacing: 0;
+			}
+
+			.readout-head p {
+				margin: 0;
+				color: var(--muted);
+				font-size: 0.98rem;
+			}
+
+			.status-pill {
+				display: inline-flex;
+				width: fit-content;
+				align-items: center;
+				gap: 0.42rem;
+				padding: 0.36rem 0.58rem;
+				border: 1px solid var(--line);
+				border-radius: 999px;
+				background: var(--panel);
+				color: var(--muted);
+				font-size: 0.8rem;
+				font-weight: 700;
+			}
+
+			.status-dot {
+				width: 0.48rem;
+				height: 0.48rem;
+				border-radius: 999px;
+				background: var(--gold);
+				box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold), transparent 78%);
+			}
+
+			.metric-grid {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 0.65rem;
+			}
+
+			.metric {
+				min-height: 6.1rem;
+				padding: 0.82rem;
 				border: 1px solid var(--line);
 				border-radius: var(--radius);
 				background: var(--panel);
 			}
 
-			.control-top {
-				display: flex;
-				justify-content: space-between;
-				gap: 1rem;
+			.metric span {
+				display: block;
 				color: var(--muted);
-				font-size: 0.85rem;
+				font-size: 0.78rem;
+				font-weight: 700;
 			}
 
-			input[type='range'] {
+			.metric strong {
+				display: block;
+				margin-top: 0.28rem;
+				color: var(--ink);
+				font-size: clamp(1.28rem, 3.4vw, 2.15rem);
+				line-height: 1;
+			}
+
+			.metric small {
+				display: block;
+				margin-top: 0.42rem;
+				color: var(--ink-soft);
+				line-height: 1.28;
+			}
+
+			.control-card {
+				display: grid;
+				gap: 0.85rem;
+				padding: 0.95rem;
+				border: 1px solid var(--line);
+				border-radius: var(--radius);
+				background: var(--panel-strong);
+			}
+
+			.control-row {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 0.65rem;
+			}
+
+			.field {
+				display: grid;
+				gap: 0.35rem;
+			}
+
+			.field label {
+				color: var(--muted);
+				font-size: 0.78rem;
+				font-weight: 700;
+			}
+
+			.field input {
 				width: 100%;
-				accent-color: var(--red);
+				min-height: 2.65rem;
+				padding: 0.55rem 0.65rem;
+				border: 1px solid var(--line);
+				border-radius: var(--radius);
+				background: var(--panel);
+				color: var(--ink);
+				font: inherit;
 			}
 
 			.button-row {
@@ -147,8 +188,8 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 			}
 
 			.lab-button {
-				min-height: 2.65rem;
-				padding: 0.65rem 0.9rem;
+				min-height: 2.7rem;
+				padding: 0.65rem 0.88rem;
 				border: 1px solid var(--line);
 				border-radius: 999px;
 				background: var(--ink);
@@ -158,14 +199,47 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 			}
 
 			.lab-button.secondary {
-				background: var(--panel-strong);
+				background: var(--panel);
 				color: var(--ink);
 			}
 
-			.lab-button:hover {
+			.lab-button:disabled {
+				cursor: progress;
+				opacity: 0.62;
+			}
+
+			.lab-button:hover:not(:disabled) {
 				border-color: var(--red);
 				color: #fff8e8;
 				background: var(--red);
+			}
+
+			.weather-strip {
+				display: grid;
+				grid-template-columns: repeat(3, minmax(0, 1fr));
+				gap: 0.65rem;
+			}
+
+			.weather-tile {
+				min-height: 5.3rem;
+				padding: 0.75rem;
+				border: 1px solid var(--line);
+				border-radius: var(--radius);
+				background: var(--panel);
+			}
+
+			.weather-tile span {
+				display: block;
+				color: var(--muted);
+				font-size: 0.74rem;
+				font-weight: 700;
+			}
+
+			.weather-tile strong {
+				display: block;
+				margin-top: 0.3rem;
+				font-size: 1.08rem;
+				line-height: 1.1;
 			}
 
 			.note-grid {
@@ -189,16 +263,23 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 				font-size: 0.9rem;
 			}
 
-			@media (max-width: 960px) {
-				.lab-hero,
-				.moon-lab,
+			@media (max-width: 980px) {
+				.sky-lab,
 				.note-grid {
 					grid-template-columns: 1fr;
 				}
 
-				.stage,
-				.stage canvas {
-					min-height: 520px;
+				.sky-stage,
+				.sky-stage canvas {
+					min-height: 560px;
+				}
+			}
+
+			@media (max-width: 560px) {
+				.metric-grid,
+				.control-row,
+				.weather-strip {
+					grid-template-columns: 1fr;
 				}
 			}
 		</style>
@@ -206,107 +287,110 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 	<body>
 		<Header />
 		<main class="lab-shell">
-			<section class="lab-hero">
-				<div class="lab-title surface">
-					<div class="eyebrow">Interactive Lab</div>
-					<h1><span data-locale="zh">实验室</span><span data-locale="en">Lab</span></h1>
-					<p>
-						<span data-locale="zh">这里放文章里可以被拖动、观察和反复试的小模型。第一件样品是月相：拖动时间，看看太阳、地球、月亮和我们看到的亮面如何一起变化。</span>
-						<span data-locale="en">This is where notes become draggable, observable, repeatable models. The first specimen is the Moon: move time and watch the Sun, Earth, Moon, and visible phase change together.</span>
-					</p>
-				</div>
-				<aside class="lab-note surface">
-					<div>
-						<div class="eyebrow">Pattern</div>
-						<p>
-							<span data-locale="zh">以后论文阅读、几何直觉、训练流程都可以复用这个模式。</span>
-							<span data-locale="en">Paper notes, geometry intuitions, and training flows can reuse this pattern later.</span>
-						</p>
-					</div>
-					<a class="button-link secondary" href={`${base}/blog/using-mdx/`}>
-						<span data-locale="zh">看 MDX 示例</span>
-						<span data-locale="en">Open MDX note</span>
-					</a>
-				</aside>
-			</section>
-
-			<section class="moon-lab">
-				<div class="stage surface">
-					<canvas id="moonCanvas" width="1200" height="720" aria-label="Moon phase simulator"></canvas>
-					<div class="stage-label" aria-hidden="true">
-						<span>Sunlight →</span>
-						<span>Orbit 29.5 days</span>
-						<span>Drag the dial</span>
+			<section class="sky-lab">
+				<div class="sky-stage surface">
+					<canvas id="moonCanvas" width="1200" height="760" aria-label="Today moon sky map"></canvas>
+					<div class="sky-label" aria-hidden="true">
+						<span id="todayChip">Today</span>
+						<span id="locationChip">Location pending</span>
+						<span id="weatherChip">Weather pending</span>
 					</div>
 				</div>
 
 				<aside class="lab-controls surface">
-					<div class="phase-readout">
-						<div class="eyebrow">Moon Phase</div>
-						<strong id="phaseName">
-							<span data-locale="zh">上弦月</span>
-							<span data-locale="en">First Quarter</span>
-						</strong>
-						<p id="phaseDescription">
-							<span data-locale="zh">月亮绕到地球侧面，我们大约看到一半被太阳照亮的月面。</span>
-							<span data-locale="en">The Moon sits to the side of Earth, so we see about half of its sunlit face.</span>
-						</p>
-					</div>
-
-					<div class="control-group">
-						<div class="control-top">
-							<label for="daySlider">
-								<span data-locale="zh">月龄</span>
-								<span data-locale="en">Lunar day</span>
-							</label>
-							<span id="dayValue">7.4</span>
+					<div class="readout-head">
+						<div class="eyebrow">Moon Lab</div>
+						<h1>
+							<span data-locale="zh">今日月亮</span>
+							<span data-locale="en">Today Moon</span>
+						</h1>
+						<p id="dateSummary">正在读取今天的日期...</p>
+						<div class="status-pill">
+							<span class="status-dot"></span>
+							<span id="locationStatus">使用演示坐标，可点击获取当前位置</span>
 						</div>
-						<input id="daySlider" type="range" min="0" max="29.53" step="0.01" value="7.38" />
 					</div>
 
-					<div class="control-group">
-						<div class="control-top">
-							<label for="tiltSlider">
-								<span data-locale="zh">轨道倾角</span>
-								<span data-locale="en">Orbit tilt</span>
-							</label>
-							<span id="tiltValue">12°</span>
+					<div class="metric-grid" aria-label="Moon position metrics">
+						<div class="metric">
+							<span>方位 Azimuth</span>
+							<strong id="azimuthValue">--</strong>
+							<small id="directionValue">等待计算</small>
 						</div>
-						<input id="tiltSlider" type="range" min="-28" max="28" step="1" value="12" />
+						<div class="metric">
+							<span>高度 Altitude</span>
+							<strong id="altitudeValue">--</strong>
+							<small id="visibilityValue">等待计算</small>
+						</div>
+						<div class="metric">
+							<span>月相 Phase</span>
+							<strong id="phaseValue">--</strong>
+							<small id="illuminationValue">等待计算</small>
+						</div>
+						<div class="metric">
+							<span>距离 Distance</span>
+							<strong id="distanceValue">--</strong>
+							<small id="ageValue">等待计算</small>
+						</div>
 					</div>
 
-					<div class="button-row">
-						<button class="lab-button" type="button" id="playButton">
-							<span data-locale="zh">播放</span>
-							<span data-locale="en">Play</span>
-						</button>
-						<button class="lab-button secondary" type="button" id="resetButton">
-							<span data-locale="zh">回到上弦</span>
-							<span data-locale="en">First quarter</span>
-						</button>
-						<a class="lab-button secondary" href={`${base}/game/`}>
-							<span data-locale="zh">去游戏页</span>
-							<span data-locale="en">Game page</span>
-						</a>
+					<div class="control-card">
+						<div class="button-row">
+							<button class="lab-button" type="button" id="locateButton">获取当前位置和天气</button>
+							<button class="lab-button secondary" type="button" id="nowButton">回到现在</button>
+							<a class="lab-button secondary" href={`${base}/game/`}>去游戏页</a>
+						</div>
+						<div class="control-row">
+							<div class="field">
+								<label for="dateInput">日期</label>
+								<input id="dateInput" type="date" />
+							</div>
+							<div class="field">
+								<label for="timeInput">时间</label>
+								<input id="timeInput" type="time" step="60" />
+							</div>
+						</div>
+						<div class="control-row">
+							<div class="field">
+								<label for="latInput">纬度</label>
+								<input id="latInput" type="number" step="0.0001" inputmode="decimal" />
+							</div>
+							<div class="field">
+								<label for="lonInput">经度</label>
+								<input id="lonInput" type="number" step="0.0001" inputmode="decimal" />
+							</div>
+						</div>
+					</div>
+
+					<div class="weather-strip" aria-label="Weather">
+						<div class="weather-tile">
+							<span>天气</span>
+							<strong id="weatherCondition">待定位</strong>
+						</div>
+						<div class="weather-tile">
+							<span>温度</span>
+							<strong id="temperatureValue">--</strong>
+						</div>
+						<div class="weather-tile">
+							<span>云量</span>
+							<strong id="cloudValue">--</strong>
+						</div>
 					</div>
 				</aside>
 			</section>
 
 			<section class="note-grid" aria-label="Experiment notes">
 				<div class="note-card surface">
-					<strong><span data-locale="zh">拖动</span><span data-locale="en">Drag</span></strong>
-					<span data-locale="zh">小组件应该允许读者主动改变变量。</span>
-					<span data-locale="en">A component should let readers change a variable directly.</span>
+					<strong>今天</strong>
+					<span>页面默认使用浏览器当天日期和当前时间，刷新后会自动更新。</span>
 				</div>
 				<div class="note-card surface">
-					<strong><span data-locale="zh">观察</span><span data-locale="en">Observe</span></strong>
-					<span data-locale="zh">画面要把变化结果立即反馈出来。</span>
-					<span data-locale="en">The scene should answer the reader immediately.</span>
+					<strong>位置</strong>
+					<span>线上 HTTPS 页面可调用浏览器定位；未授权时使用北京演示坐标。</span>
 				</div>
 				<div class="note-card surface">
-					<strong><span data-locale="zh">写下来</span><span data-locale="en">Write</span></strong>
-					<span data-locale="zh">互动不是装饰，它应该服务于一段解释。</span>
-					<span data-locale="en">The interaction is not decoration; it should serve an explanation.</span>
+					<strong>天气</strong>
+					<span>定位成功后通过 Open-Meteo 获取实时温度、云量、风和湿度。</span>
 				</div>
 			</section>
 		</main>
@@ -315,98 +399,197 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 		<script>
 			const canvas = document.querySelector('#moonCanvas');
 			const ctx = canvas?.getContext('2d');
-			const daySlider = document.querySelector('#daySlider');
-			const tiltSlider = document.querySelector('#tiltSlider');
-			const dayValue = document.querySelector('#dayValue');
-			const tiltValue = document.querySelector('#tiltValue');
-			const phaseName = document.querySelector('#phaseName');
-			const phaseDescription = document.querySelector('#phaseDescription');
-			const playButton = document.querySelector('#playButton');
-			const resetButton = document.querySelector('#resetButton');
-			const cycle = 29.53;
-			let isPlaying = false;
-			let frame = 0;
-			let last = performance.now();
+			const todayChip = document.querySelector('#todayChip');
+			const locationChip = document.querySelector('#locationChip');
+			const weatherChip = document.querySelector('#weatherChip');
+			const dateSummary = document.querySelector('#dateSummary');
+			const locationStatus = document.querySelector('#locationStatus');
+			const dateInput = document.querySelector('#dateInput');
+			const timeInput = document.querySelector('#timeInput');
+			const latInput = document.querySelector('#latInput');
+			const lonInput = document.querySelector('#lonInput');
+			const locateButton = document.querySelector('#locateButton');
+			const nowButton = document.querySelector('#nowButton');
+			const azimuthValue = document.querySelector('#azimuthValue');
+			const altitudeValue = document.querySelector('#altitudeValue');
+			const directionValue = document.querySelector('#directionValue');
+			const visibilityValue = document.querySelector('#visibilityValue');
+			const phaseValue = document.querySelector('#phaseValue');
+			const illuminationValue = document.querySelector('#illuminationValue');
+			const distanceValue = document.querySelector('#distanceValue');
+			const ageValue = document.querySelector('#ageValue');
+			const weatherCondition = document.querySelector('#weatherCondition');
+			const temperatureValue = document.querySelector('#temperatureValue');
+			const cloudValue = document.querySelector('#cloudValue');
+			const synodicMonth = 29.530588853;
+			const fallbackLocation = {
+				lat: 39.9042,
+				lon: 116.4074,
+				label: '北京演示坐标',
+				source: 'fallback',
+			};
+			let activeLocation = { ...fallbackLocation };
+			let weatherData = null;
 
-			const phaseCopy = [
-				{
-					limit: 1.85,
-					zh: '新月',
-					en: 'New Moon',
-					descriptionZh: '月亮在太阳方向附近，朝向我们的这一面几乎没有被照亮。',
-					descriptionEn: 'The Moon sits near the Sun, and the side facing us is mostly unlit.',
-				},
-				{
-					limit: 5.54,
-					zh: '蛾眉月',
-					en: 'Waxing Crescent',
-					descriptionZh: '亮面开始从边缘长出来，月亮正在走向上弦。',
-					descriptionEn: 'A bright edge starts to grow as the Moon moves toward first quarter.',
-				},
-				{
-					limit: 9.23,
-					zh: '上弦月',
-					en: 'First Quarter',
-					descriptionZh: '月亮绕到地球侧面，我们大约看到一半被太阳照亮的月面。',
-					descriptionEn: 'The Moon sits to the side of Earth, so we see about half of its sunlit face.',
-				},
-				{
-					limit: 12.92,
-					zh: '盈凸月',
-					en: 'Waxing Gibbous',
-					descriptionZh: '亮面超过一半，月亮继续向满月靠近。',
-					descriptionEn: 'More than half of the disk is bright as the Moon approaches full.',
-				},
-				{
-					limit: 16.61,
-					zh: '满月',
-					en: 'Full Moon',
-					descriptionZh: '地球位于太阳和月亮之间，我们看到几乎完整的受光面。',
-					descriptionEn: 'Earth is between the Sun and Moon, so we see nearly the whole lit face.',
-				},
-				{
-					limit: 20.3,
-					zh: '亏凸月',
-					en: 'Waning Gibbous',
-					descriptionZh: '满月之后亮面开始收回，阴影从另一侧靠近。',
-					descriptionEn: 'After full moon, the bright face starts to retreat from the other side.',
-				},
-				{
-					limit: 23.99,
-					zh: '下弦月',
-					en: 'Last Quarter',
-					descriptionZh: '再次看到大约一半月面，只是亮的一边换了方向。',
-					descriptionEn: 'We see about half the disk again, but the bright side has switched.',
-				},
-				{
-					limit: 27.68,
-					zh: '残月',
-					en: 'Waning Crescent',
-					descriptionZh: '亮面越来越窄，月亮将回到新月。',
-					descriptionEn: 'The bright sliver narrows as the Moon returns to new.',
-				},
-				{
-					limit: cycle,
-					zh: '新月',
-					en: 'New Moon',
-					descriptionZh: '一个周期结束，下一轮月相从这里重新开始。',
-					descriptionEn: 'One cycle ends, and the next set of phases begins here.',
-				},
-			];
+			const rad = (degrees) => (degrees * Math.PI) / 180;
+			const deg = (radians) => (radians * 180) / Math.PI;
+			const normalizeDegrees = (value) => ((value % 360) + 360) % 360;
+			const normalizeRadians = (value) => ((value % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
 
-			const setCopy = (day) => {
-				const copy = phaseCopy.find((item) => day <= item.limit) ?? phaseCopy[0];
-				if (phaseName) {
-					const zh = phaseName.querySelector('[data-locale="zh"]');
-					const en = phaseName.querySelector('[data-locale="en"]');
-					if (zh) zh.textContent = copy.zh;
-					if (en) en.textContent = copy.en;
-				}
-				if (phaseDescription) {
-					const zh = phaseDescription.querySelector('[data-locale="zh"]');
-					const en = phaseDescription.querySelector('[data-locale="en"]');
-					if (zh) zh.textContent = copy.descriptionZh;
-					if (en) en.textContent = copy.descriptionEn;
+			const weatherCodeText = {
+				0: '晴朗',
+				1: '大致晴朗',
+				2: '局部多云',
+				3: '阴天',
+				45: '雾',
+				48: '雾凇',
+				51: '小毛毛雨',
+				53: '毛毛雨',
+				55: '较强毛毛雨',
+				61: '小雨',
+				63: '中雨',
+				65: '大雨',
+				71: '小雪',
+				73: '中雪',
+				75: '大雪',
+				80: '阵雨',
+				81: '较强阵雨',
+				82: '强阵雨',
+				95: '雷雨',
+				96: '雷雨伴冰雹',
+				99: '强雷雨伴冰雹',
+			};
+
+			const formatDateInput = (date) => {
+				const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+				return local.toISOString().slice(0, 10);
+			};
+
+			const formatTimeInput = (date) => {
+				return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+			};
+
+			const selectedDate = () => {
+				const datePart = dateInput?.value || formatDateInput(new Date());
+				const timePart = timeInput?.value || formatTimeInput(new Date());
+				return new Date(`${datePart}T${timePart}:00`);
+			};
+
+			const julianDay = (date) => date.getTime() / 86400000 + 2440587.5;
+
+			const sunPosition = (days) => {
+				const meanAnomaly = rad(357.529 + 0.98560028 * days);
+				const center = rad(1.915) * Math.sin(meanAnomaly) + rad(0.02) * Math.sin(2 * meanAnomaly);
+				const longitude = normalizeRadians(rad(280.459 + 0.98564736 * days) + center);
+				const obliquity = rad(23.439 - 0.00000036 * days);
+				return {
+					longitude,
+					ra: Math.atan2(Math.cos(obliquity) * Math.sin(longitude), Math.cos(longitude)),
+					dec: Math.asin(Math.sin(obliquity) * Math.sin(longitude)),
+				};
+			};
+
+			const moonCoordinates = (days) => {
+				const meanLongitude = rad(218.316 + 13.176396 * days);
+				const meanAnomaly = rad(134.963 + 13.064993 * days);
+				const argument = rad(93.272 + 13.22935 * days);
+				const longitude = normalizeRadians(meanLongitude + rad(6.289) * Math.sin(meanAnomaly));
+				const latitude = rad(5.128) * Math.sin(argument);
+				const distance = 385001 - 20905 * Math.cos(meanAnomaly);
+				const obliquity = rad(23.439 - 0.00000036 * days);
+				return {
+					longitude,
+					latitude,
+					distance,
+					ra: Math.atan2(
+						Math.sin(longitude) * Math.cos(obliquity) - Math.tan(latitude) * Math.sin(obliquity),
+						Math.cos(longitude),
+					),
+					dec: Math.asin(
+						Math.sin(latitude) * Math.cos(obliquity)
+							+ Math.cos(latitude) * Math.sin(obliquity) * Math.sin(longitude),
+					),
+				};
+			};
+
+			const horizontalPosition = (date, latitude, longitude, rightAscension, declination) => {
+				const days = julianDay(date) - 2451545;
+				const localSidereal = rad(280.16 + 360.9856235 * days) + rad(longitude);
+				const hourAngle = localSidereal - rightAscension;
+				const phi = rad(latitude);
+				const altitude = Math.asin(
+					Math.sin(phi) * Math.sin(declination) + Math.cos(phi) * Math.cos(declination) * Math.cos(hourAngle),
+				);
+				const azimuth = Math.atan2(
+					-Math.sin(hourAngle),
+					Math.tan(declination) * Math.cos(phi) - Math.sin(phi) * Math.cos(hourAngle),
+				);
+				return {
+					altitude: deg(altitude),
+					azimuth: normalizeDegrees(deg(azimuth)),
+				};
+			};
+
+			const phaseName = (age) => {
+				if (age < 1.85 || age > 27.68) return '新月';
+				if (age < 5.54) return '蛾眉月';
+				if (age < 9.23) return '上弦月';
+				if (age < 12.92) return '盈凸月';
+				if (age < 16.61) return '满月';
+				if (age < 20.3) return '亏凸月';
+				if (age < 23.99) return '下弦月';
+				return '残月';
+			};
+
+			const compassName = (azimuth) => {
+				const labels = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
+				return labels[Math.round(azimuth / 45) % 8];
+			};
+
+			const moonState = () => {
+				const date = selectedDate();
+				const days = julianDay(date) - 2451545;
+				const sun = sunPosition(days);
+				const moon = moonCoordinates(days);
+				const horizontal = horizontalPosition(date, activeLocation.lat, activeLocation.lon, moon.ra, moon.dec);
+				const elongation = normalizeRadians(moon.longitude - sun.longitude);
+				const age = (elongation / (Math.PI * 2)) * synodicMonth;
+				const illumination = (1 - Math.cos(elongation)) / 2;
+				return {
+					date,
+					...horizontal,
+					age,
+					illumination,
+					distance: moon.distance,
+					phase: phaseName(age),
+					direction: compassName(horizontal.azimuth),
+				};
+			};
+
+			const updateText = (state) => {
+				const dateText = new Intl.DateTimeFormat('zh-CN', {
+					weekday: 'long',
+					year: 'numeric',
+					month: 'long',
+					day: 'numeric',
+					hour: '2-digit',
+					minute: '2-digit',
+				}).format(state.date);
+				if (todayChip) todayChip.textContent = formatDateInput(state.date);
+				if (dateSummary) dateSummary.textContent = `当前计算时间：${dateText}`;
+				if (locationChip) locationChip.textContent = `${activeLocation.label} ${activeLocation.lat.toFixed(2)}, ${activeLocation.lon.toFixed(2)}`;
+				if (azimuthValue) azimuthValue.textContent = `${Math.round(state.azimuth)}°`;
+				if (altitudeValue) altitudeValue.textContent = `${Math.round(state.altitude)}°`;
+				if (directionValue) directionValue.textContent = `${state.direction}方向`;
+				if (visibilityValue) visibilityValue.textContent = state.altitude >= 0 ? '月亮在地平线上方' : '月亮在地平线下方';
+				if (phaseValue) phaseValue.textContent = state.phase;
+				if (illuminationValue) illuminationValue.textContent = `亮面约 ${Math.round(state.illumination * 100)}%`;
+				if (distanceValue) distanceValue.textContent = `${Math.round(state.distance / 1000)}万 km`;
+				if (ageValue) ageValue.textContent = `月龄 ${state.age.toFixed(1)} 天`;
+				if (locationStatus) {
+					locationStatus.textContent = activeLocation.source === 'browser'
+						? '已使用浏览器当前位置'
+						: '未授权定位，使用北京演示坐标';
 				}
 			};
 
@@ -419,10 +602,11 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 				ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 			};
 
-			const drawMoonDisk = (x, y, radius, phase) => {
+			const drawMoonDisk = (x, y, radius, age) => {
 				if (!ctx) return;
+				const phase = age / synodicMonth;
 				const angle = phase * Math.PI * 2;
-				const illum = (1 - Math.cos(angle)) / 2;
+				const illumination = (1 - Math.cos(angle)) / 2;
 				const waxing = phase <= 0.5;
 				ctx.save();
 				ctx.beginPath();
@@ -430,54 +614,46 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 				ctx.clip();
 				ctx.fillStyle = '#252a2f';
 				ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
-				ctx.fillStyle = '#efe5cf';
-
-				if (illum < 0.01) {
-					ctx.restore();
-					return;
-				}
-				if (illum > 0.99) {
+				ctx.fillStyle = '#f2e6ce';
+				if (illumination > 0.99) {
 					ctx.beginPath();
 					ctx.arc(x, y, radius, 0, Math.PI * 2);
 					ctx.fill();
-					ctx.restore();
-					return;
-				}
-
-				if (illum <= 0.5) {
-					const rx = radius * (1 - illum * 2);
-					ctx.beginPath();
-					if (waxing) {
-						ctx.arc(x, y, radius, -Math.PI / 2, Math.PI / 2);
-						ctx.ellipse(x, y, rx, radius, 0, Math.PI / 2, -Math.PI / 2, true);
+				} else if (illumination > 0.01) {
+					if (illumination <= 0.5) {
+						const rx = radius * (1 - illumination * 2);
+						ctx.beginPath();
+						if (waxing) {
+							ctx.arc(x, y, radius, -Math.PI / 2, Math.PI / 2);
+							ctx.ellipse(x, y, rx, radius, 0, Math.PI / 2, -Math.PI / 2, true);
+						} else {
+							ctx.arc(x, y, radius, Math.PI / 2, -Math.PI / 2);
+							ctx.ellipse(x, y, rx, radius, 0, -Math.PI / 2, Math.PI / 2, true);
+						}
+						ctx.closePath();
+						ctx.fill();
 					} else {
-						ctx.arc(x, y, radius, Math.PI / 2, -Math.PI / 2);
-						ctx.ellipse(x, y, rx, radius, 0, -Math.PI / 2, Math.PI / 2, true);
+						ctx.beginPath();
+						ctx.arc(x, y, radius, 0, Math.PI * 2);
+						ctx.fill();
+						ctx.fillStyle = '#252a2f';
+						const dark = 1 - illumination;
+						const rx = radius * (1 - dark * 2);
+						ctx.beginPath();
+						if (waxing) {
+							ctx.arc(x, y, radius, Math.PI / 2, -Math.PI / 2);
+							ctx.ellipse(x, y, rx, radius, 0, -Math.PI / 2, Math.PI / 2, true);
+						} else {
+							ctx.arc(x, y, radius, -Math.PI / 2, Math.PI / 2);
+							ctx.ellipse(x, y, rx, radius, 0, Math.PI / 2, -Math.PI / 2, true);
+						}
+						ctx.closePath();
+						ctx.fill();
 					}
-					ctx.closePath();
-					ctx.fill();
-				} else {
-					ctx.beginPath();
-					ctx.arc(x, y, radius, 0, Math.PI * 2);
-					ctx.fill();
-					ctx.fillStyle = '#252a2f';
-					const dark = 1 - illum;
-					const rx = radius * (1 - dark * 2);
-					ctx.beginPath();
-					if (waxing) {
-						ctx.arc(x, y, radius, Math.PI / 2, -Math.PI / 2);
-						ctx.ellipse(x, y, rx, radius, 0, -Math.PI / 2, Math.PI / 2, true);
-					} else {
-						ctx.arc(x, y, radius, -Math.PI / 2, Math.PI / 2);
-						ctx.ellipse(x, y, rx, radius, 0, Math.PI / 2, -Math.PI / 2, true);
-					}
-					ctx.closePath();
-					ctx.fill();
 				}
-
-				const grd = ctx.createRadialGradient(x - radius * 0.32, y - radius * 0.34, radius * 0.1, x, y, radius);
-				grd.addColorStop(0, 'rgba(255,255,255,0.2)');
-				grd.addColorStop(1, 'rgba(0,0,0,0.32)');
+				const grd = ctx.createRadialGradient(x - radius * 0.32, y - radius * 0.34, radius * 0.08, x, y, radius);
+				grd.addColorStop(0, 'rgba(255,255,255,0.24)');
+				grd.addColorStop(1, 'rgba(0,0,0,0.34)');
 				ctx.fillStyle = grd;
 				ctx.beginPath();
 				ctx.arc(x, y, radius, 0, Math.PI * 2);
@@ -486,135 +662,207 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 			};
 
 			const draw = () => {
-				if (!canvas || !ctx || !daySlider || !tiltSlider) return;
+				if (!canvas || !ctx) return;
+				const state = moonState();
+				updateText(state);
 				const width = canvas.getBoundingClientRect().width;
 				const height = canvas.getBoundingClientRect().height;
-				const day = Number(daySlider.value);
-				const tilt = Number(tiltSlider.value);
-				const phase = day / cycle;
-				const angle = phase * Math.PI * 2 - Math.PI;
-				const orbitRadius = Math.min(width, height) * 0.25;
-				const cx = width * 0.58;
-				const cy = height * 0.5;
-				const tiltY = Math.sin((tilt * Math.PI) / 180) * orbitRadius * 0.4;
-				const moonX = cx + Math.cos(angle) * orbitRadius;
-				const moonY = cy + Math.sin(angle) * orbitRadius * 0.58 + tiltY;
-				const bigX = width * 0.23;
-				const bigY = height * 0.52;
-				const bigR = Math.min(width, height) * 0.17;
-
 				ctx.clearRect(0, 0, width, height);
-				ctx.fillStyle = '#101215';
+
+				const sky = ctx.createLinearGradient(0, 0, 0, height);
+				sky.addColorStop(0, '#101926');
+				sky.addColorStop(0.58, '#182628');
+				sky.addColorStop(1, '#26331f');
+				ctx.fillStyle = sky;
 				ctx.fillRect(0, 0, width, height);
 
+				for (let i = 0; i < 110; i += 1) {
+					const x = seededStar(i, 13) * width;
+					const y = seededStar(i, 71) * height * 0.72;
+					const opacity = 0.14 + seededStar(i, 97) * 0.52;
+					ctx.fillStyle = `rgba(255, 248, 232, ${opacity})`;
+					ctx.beginPath();
+					ctx.arc(x, y, 0.7 + seededStar(i, 131) * 1.2, 0, Math.PI * 2);
+					ctx.fill();
+				}
+
+				const domeRadius = Math.min(width, height) * 0.33;
+				const domeX = width * 0.43;
+				const domeY = height * 0.55;
 				ctx.save();
-				ctx.globalAlpha = 0.38;
-				ctx.strokeStyle = 'rgba(255,248,232,0.08)';
-				for (let x = 0; x < width; x += 36) {
-					ctx.beginPath();
-					ctx.moveTo(x, 0);
-					ctx.lineTo(x, height);
-					ctx.stroke();
-				}
-				for (let y = 0; y < height; y += 36) {
-					ctx.beginPath();
-					ctx.moveTo(0, y);
-					ctx.lineTo(width, y);
-					ctx.stroke();
-				}
-				ctx.restore();
-
-				ctx.fillStyle = 'rgba(246,189,96,0.16)';
-				ctx.fillRect(width - 150, 0, 150, height);
-				const sunGradient = ctx.createRadialGradient(width - 64, cy, 8, width - 64, cy, 96);
-				sunGradient.addColorStop(0, '#ffe2a8');
-				sunGradient.addColorStop(1, 'rgba(246,189,96,0)');
-				ctx.fillStyle = sunGradient;
-				ctx.beginPath();
-				ctx.arc(width - 64, cy, 96, 0, Math.PI * 2);
-				ctx.fill();
-
-				ctx.strokeStyle = 'rgba(255,248,232,0.28)';
-				ctx.setLineDash([8, 10]);
-				ctx.beginPath();
-				ctx.ellipse(cx, cy + tiltY, orbitRadius, orbitRadius * 0.58, 0, 0, Math.PI * 2);
-				ctx.stroke();
-				ctx.setLineDash([]);
-
-				const earthGradient = ctx.createRadialGradient(cx - 10, cy - 12, 8, cx, cy, 46);
-				earthGradient.addColorStop(0, '#9bd3ee');
-				earthGradient.addColorStop(0.55, '#236d8f');
-				earthGradient.addColorStop(1, '#102c39');
-				ctx.fillStyle = earthGradient;
-				ctx.beginPath();
-				ctx.arc(cx, cy, 42, 0, Math.PI * 2);
-				ctx.fill();
-
-				ctx.strokeStyle = 'rgba(255,226,168,0.35)';
-				ctx.beginPath();
-				ctx.moveTo(width - 144, cy);
-				ctx.lineTo(cx, cy);
-				ctx.stroke();
-
-				drawMoonDisk(moonX, moonY, 24, phase);
+				ctx.translate(domeX, domeY);
 				ctx.strokeStyle = 'rgba(255,248,232,0.22)';
+				ctx.lineWidth = 1.4;
+				[1, 0.66, 0.33].forEach((scale) => {
+					ctx.beginPath();
+					ctx.arc(0, 0, domeRadius * scale, 0, Math.PI * 2);
+					ctx.stroke();
+				});
+				ctx.fillStyle = 'rgba(255,248,232,0.76)';
+				ctx.font = '700 14px Atkinson, sans-serif';
+				[
+					['N', 0, -1],
+					['E', 1, 0],
+					['S', 0, 1],
+					['W', -1, 0],
+				].forEach(([label, x, y]) => {
+					ctx.fillText(label, x * (domeRadius + 18) - 6, y * (domeRadius + 18) + 5);
+				});
+				const altitudeClamped = Math.max(-12, Math.min(90, state.altitude));
+				const radius = domeRadius * (1 - Math.max(0, altitudeClamped) / 90);
+				const az = rad(state.azimuth - 90);
+				const moonX = Math.cos(az) * radius;
+				const moonY = Math.sin(az) * radius;
+				ctx.strokeStyle = 'rgba(141, 208, 214, 0.7)';
 				ctx.beginPath();
-				ctx.moveTo(cx, cy);
+				ctx.moveTo(0, 0);
 				ctx.lineTo(moonX, moonY);
 				ctx.stroke();
+				ctx.fillStyle = state.altitude >= 0 ? '#8ed0d6' : 'rgba(142,208,214,0.34)';
+				ctx.beginPath();
+				ctx.arc(moonX, moonY, 8, 0, Math.PI * 2);
+				ctx.fill();
+				ctx.restore();
 
-				drawMoonDisk(bigX, bigY, bigR, phase);
+				const bigX = width * 0.78;
+				const bigY = height * 0.42;
+				const bigR = Math.min(width, height) * 0.13;
+				drawMoonDisk(bigX, bigY, bigR, state.age);
 				ctx.fillStyle = '#fff8e8';
-				ctx.font = '700 14px Atkinson, sans-serif';
-				ctx.fillText(`day ${day.toFixed(1)}`, bigX - bigR, bigY + bigR + 34);
+				ctx.font = '700 26px Atkinson, sans-serif';
+				ctx.fillText(state.phase, bigX - bigR, bigY + bigR + 42);
 				ctx.fillStyle = 'rgba(255,248,232,0.62)';
-				ctx.font = '400 13px Atkinson, sans-serif';
-				ctx.fillText('visible phase from Earth', bigX - bigR, bigY + bigR + 56);
+				ctx.font = '400 15px Atkinson, sans-serif';
+				ctx.fillText(`alt ${state.altitude.toFixed(1)} deg  az ${state.azimuth.toFixed(1)} deg`, bigX - bigR, bigY + bigR + 68);
 
-				if (dayValue) dayValue.textContent = day.toFixed(1);
-				if (tiltValue) tiltValue.textContent = `${tilt}°`;
-				setCopy(day);
+				ctx.fillStyle = 'rgba(255,248,232,0.08)';
+				ctx.fillRect(0, height * 0.78, width, height * 0.22);
+				ctx.strokeStyle = 'rgba(255,248,232,0.28)';
+				ctx.beginPath();
+				ctx.moveTo(0, height * 0.78);
+				ctx.lineTo(width, height * 0.78);
+				ctx.stroke();
 			};
 
-			const tick = (time) => {
-				if (isPlaying && daySlider) {
-					const delta = Math.min(64, time - last);
-					const next = (Number(daySlider.value) + delta * 0.0026) % cycle;
-					daySlider.value = String(next);
-					draw();
+			const seededStar = (index, salt) => {
+				const value = Math.sin(index * 127.1 + salt * 311.7) * 43758.5453;
+				return value - Math.floor(value);
+			};
+
+			const updateWeatherText = () => {
+				if (!weatherData?.current) {
+					if (weatherChip) weatherChip.textContent = 'Weather pending';
+					return;
 				}
-				last = time;
-				frame = requestAnimationFrame(tick);
+				const current = weatherData.current;
+				const units = weatherData.current_units ?? {};
+				const condition = weatherCodeText[current.weather_code] ?? '天气已获取';
+				if (weatherCondition) weatherCondition.textContent = condition;
+				if (temperatureValue) temperatureValue.textContent = `${Math.round(current.temperature_2m)}${units.temperature_2m ?? '°C'}`;
+				if (cloudValue) cloudValue.textContent = `${current.cloud_cover ?? '--'}%`;
+				if (weatherChip) weatherChip.textContent = `${condition} · 风 ${current.wind_speed_10m ?? '--'}${units.wind_speed_10m ?? 'km/h'}`;
 			};
 
-			daySlider?.addEventListener('input', draw);
-			tiltSlider?.addEventListener('input', draw);
-			playButton?.addEventListener('click', () => {
-				isPlaying = !isPlaying;
-				const zh = playButton.querySelector('[data-locale="zh"]');
-				const en = playButton.querySelector('[data-locale="en"]');
-				if (zh) zh.textContent = isPlaying ? '暂停' : '播放';
-				if (en) en.textContent = isPlaying ? 'Pause' : 'Play';
-			});
-			resetButton?.addEventListener('click', () => {
-				if (daySlider) daySlider.value = '7.38';
-				if (tiltSlider) tiltSlider.value = '12';
-				isPlaying = false;
-				const zh = playButton?.querySelector('[data-locale="zh"]');
-				const en = playButton?.querySelector('[data-locale="en"]');
-				if (zh) zh.textContent = '播放';
-				if (en) en.textContent = 'Play';
+			const fetchWeather = async () => {
+				if (!Number.isFinite(activeLocation.lat) || !Number.isFinite(activeLocation.lon)) return;
+				if (weatherChip) weatherChip.textContent = 'Fetching weather...';
+				const url = new URL('https://api.open-meteo.com/v1/forecast');
+				url.searchParams.set('latitude', activeLocation.lat.toFixed(4));
+				url.searchParams.set('longitude', activeLocation.lon.toFixed(4));
+				url.searchParams.set('current', 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,cloud_cover,wind_speed_10m');
+				url.searchParams.set('timezone', 'auto');
+				const response = await fetch(url);
+				if (!response.ok) throw new Error(`Weather request failed: ${response.status}`);
+				weatherData = await response.json();
+				updateWeatherText();
+			};
+
+			const applyLocation = (location) => {
+				activeLocation = location;
+				if (latInput) latInput.value = location.lat.toFixed(4);
+				if (lonInput) lonInput.value = location.lon.toFixed(4);
+				draw();
+			};
+
+			const requestLocation = () => {
+				if (!navigator.geolocation) {
+					if (locationStatus) locationStatus.textContent = '当前浏览器不支持定位，继续使用演示坐标';
+					return;
+				}
+				if (!window.isSecureContext && !['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+					if (locationStatus) locationStatus.textContent = '浏览器定位需要 HTTPS 页面';
+					return;
+				}
+				if (locateButton) locateButton.disabled = true;
+				if (locationStatus) locationStatus.textContent = '正在请求浏览器定位...';
+				navigator.geolocation.getCurrentPosition(
+					async (position) => {
+						applyLocation({
+							lat: position.coords.latitude,
+							lon: position.coords.longitude,
+							label: '当前位置',
+							source: 'browser',
+						});
+						try {
+							await fetchWeather();
+						} catch (error) {
+							if (weatherChip) weatherChip.textContent = '天气获取失败';
+							if (weatherCondition) weatherCondition.textContent = '天气获取失败';
+						} finally {
+							if (locateButton) locateButton.disabled = false;
+						}
+					},
+					() => {
+						if (locationStatus) locationStatus.textContent = '定位未授权，继续使用北京演示坐标';
+						if (locateButton) locateButton.disabled = false;
+						draw();
+					},
+					{ enableHighAccuracy: false, timeout: 9000, maximumAge: 600000 },
+				);
+			};
+
+			const setNow = () => {
+				const now = new Date();
+				if (dateInput) dateInput.value = formatDateInput(now);
+				if (timeInput) timeInput.value = formatTimeInput(now);
+				draw();
+			};
+
+			const setup = () => {
+				setNow();
+				applyLocation(fallbackLocation);
+				updateWeatherText();
+				resizeCanvas();
+				draw();
+			};
+
+			dateInput?.addEventListener('input', draw);
+			timeInput?.addEventListener('input', draw);
+			latInput?.addEventListener('input', () => {
+				const next = Number(latInput.value);
+				if (!Number.isFinite(next)) return;
+				activeLocation = { ...activeLocation, lat: next, label: '手动坐标', source: 'manual' };
 				draw();
 			});
-
+			lonInput?.addEventListener('input', () => {
+				const next = Number(lonInput.value);
+				if (!Number.isFinite(next)) return;
+				activeLocation = { ...activeLocation, lon: next, label: '手动坐标', source: 'manual' };
+				draw();
+			});
+			locateButton?.addEventListener('click', requestLocation);
+			nowButton?.addEventListener('click', setNow);
 			window.addEventListener('resize', () => {
 				resizeCanvas();
 				draw();
 			});
-			resizeCanvas();
-			draw();
-			frame = requestAnimationFrame(tick);
-			window.addEventListener('pagehide', () => cancelAnimationFrame(frame));
+
+			setup();
+			window.__moonLabDebug = () => ({
+				location: activeLocation,
+				weatherLoaded: Boolean(weatherData),
+				state: moonState(),
+			});
 		</script>
 	</body>
 </html>
