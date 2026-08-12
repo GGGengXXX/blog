@@ -10,6 +10,9 @@ import rehypeKatex from 'rehype-katex';
 export default defineConfig({
 	site: 'https://gggengxxx.github.io',
 	base: '/blog',
+	devToolbar: {
+		enabled: false,
+	},
 	integrations: [mdx(), sitemap()],
 	markdown: {
 		remarkPlugins: [remarkMath],

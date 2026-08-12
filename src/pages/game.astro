@@ -1,0 +1,2127 @@
+---
+import BaseHead from '../components/BaseHead.astro';
+import Header from '../components/Header.astro';
+import { SITE_TITLE } from '../consts';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<!doctype html>
+<html lang="zh-CN">
+	<head>
+		<BaseHead title={`游戏 | ${SITE_TITLE}`} description="A 3D driving map for the blog." />
+		<style>
+			body {
+				overflow: hidden;
+				background: #111713;
+			}
+
+			.game-main {
+				width: 100%;
+				margin: 0;
+				padding: 0;
+			}
+
+			.game-stage {
+				position: relative;
+				width: 100%;
+				height: calc(100vh - 69px);
+				min-height: 620px;
+				overflow: hidden;
+				background: #111713;
+			}
+
+			.three-mount {
+				display: block;
+				width: 100%;
+				height: 100%;
+				touch-action: none;
+			}
+
+			:global(.three-mount canvas) {
+				display: block;
+				width: 100% !important;
+				height: 100% !important;
+				touch-action: none;
+			}
+
+			.hud {
+				position: absolute;
+				inset: 1rem 1rem auto;
+				display: flex;
+				justify-content: space-between;
+				gap: 1rem;
+				pointer-events: none;
+			}
+
+			.hud-card {
+				min-width: 11rem;
+				max-width: 22rem;
+				padding: 0.78rem 0.9rem;
+				border: 1px solid rgba(255, 248, 232, 0.18);
+				border-radius: var(--radius);
+				background: rgba(16, 17, 15, 0.7);
+				color: #fff8e8;
+				backdrop-filter: blur(14px);
+				box-shadow: 0 18px 38px rgba(0, 0, 0, 0.22);
+			}
+
+			.hud-card strong {
+				display: block;
+				margin-bottom: 0.12rem;
+				font-size: 1rem;
+				line-height: 1.1;
+			}
+
+			.hud-card span {
+				color: rgba(255, 248, 232, 0.68);
+				font-size: 0.82rem;
+				line-height: 1.28;
+			}
+
+			.enter-button {
+				position: absolute;
+				right: 1rem;
+				bottom: 1rem;
+				display: none;
+				align-items: center;
+				min-height: 3rem;
+				padding: 0.8rem 1rem;
+				border: 1px solid rgba(255, 248, 232, 0.24);
+				border-radius: 999px;
+				background: var(--red);
+				color: #fff8e8;
+				cursor: pointer;
+				font-weight: 700;
+				box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+			}
+
+			.enter-button.is-visible {
+				display: inline-flex;
+			}
+
+			.jump-button,
+			.pulse-button {
+				position: absolute;
+				bottom: 1rem;
+				display: none;
+				width: 4rem;
+				height: 4rem;
+				place-items: center;
+				border: 1px solid rgba(255, 248, 232, 0.22);
+				border-radius: 999px;
+				background: rgba(16, 17, 15, 0.72);
+				color: #fff8e8;
+				cursor: pointer;
+				font-size: 1.45rem;
+				font-weight: 800;
+				backdrop-filter: blur(12px);
+				box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+				user-select: none;
+				transition:
+					transform 0.12s ease,
+					background 0.12s ease,
+					border-color 0.12s ease;
+			}
+
+			.jump-button {
+				right: 1rem;
+			}
+
+			.pulse-button {
+				right: 5.45rem;
+				font-size: 1.18rem;
+			}
+
+			.jump-button.is-pressed,
+			.pulse-button.is-pressed {
+				transform: translateY(2px) scale(0.96);
+				border-color: rgba(255, 248, 232, 0.56);
+				background: rgba(201, 67, 56, 0.84);
+			}
+
+			.pulse-button.is-cooling {
+				opacity: 0.5;
+			}
+
+			.touch-controls {
+				position: absolute;
+				left: 1rem;
+				bottom: 1rem;
+				display: none;
+				grid-template-columns: repeat(3, 3rem);
+				grid-template-rows: repeat(2, 3rem);
+				gap: 0.35rem;
+			}
+
+			.touch-button {
+				display: inline-grid;
+				place-items: center;
+				border: 1px solid rgba(255, 248, 232, 0.2);
+				border-radius: 999px;
+				background: rgba(16, 17, 15, 0.68);
+				color: #fff8e8;
+				cursor: pointer;
+				font-size: 1.12rem;
+				font-weight: 700;
+				backdrop-filter: blur(12px);
+				user-select: none;
+				transition:
+					transform 0.12s ease,
+					background 0.12s ease,
+					border-color 0.12s ease;
+			}
+
+			.touch-button.is-pressed {
+				transform: translateY(2px) scale(0.96);
+				border-color: rgba(255, 248, 232, 0.54);
+				background: rgba(201, 67, 56, 0.82);
+			}
+
+			.touch-button[data-control='up'] {
+				grid-column: 2;
+			}
+
+			.touch-button[data-control='left'] {
+				grid-column: 1;
+				grid-row: 2;
+			}
+
+			.touch-button[data-control='down'] {
+				grid-column: 2;
+				grid-row: 2;
+			}
+
+			.touch-button[data-control='right'] {
+				grid-column: 3;
+				grid-row: 2;
+			}
+
+			@media (max-width: 720px) {
+				body {
+					overflow: auto;
+				}
+
+				.game-stage {
+					height: calc(100vh - 128px);
+					min-height: 560px;
+				}
+
+				.hud {
+					inset: 0.7rem 0.7rem auto;
+				}
+
+				.hud-card {
+					min-width: 0;
+					max-width: 47%;
+					padding: 0.62rem 0.7rem;
+				}
+
+				.hud-card span {
+					display: none;
+				}
+
+				.touch-controls {
+					display: grid;
+				}
+
+				.jump-button,
+				.pulse-button {
+					display: grid;
+				}
+
+				.enter-button.is-visible {
+					bottom: 5.45rem;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<Header />
+		<main class="game-main">
+			<section class="game-stage" id="gameStage" data-base={base} aria-label="3D blog driving map">
+				<div class="three-mount" id="threeMount"></div>
+				<div class="hud" aria-hidden="true">
+					<div class="hud-card">
+						<strong id="zoneName">Blog Town</strong>
+						<span id="zoneHint">W/S 油门/倒车，A/D 转向，Space 跳跃，E 扫描。</span>
+					</div>
+					<div class="hud-card">
+						<strong id="speedText">0 km/h</strong>
+						<span id="progressText">灵感 0/0 · 扫描可用</span>
+					</div>
+				</div>
+				<button class="enter-button" id="enterButton" type="button">Enter</button>
+				<div class="touch-controls" aria-label="Touch driving controls">
+					<button class="touch-button" type="button" data-control="up">↑</button>
+					<button class="touch-button" type="button" data-control="left">←</button>
+					<button class="touch-button" type="button" data-control="down">↓</button>
+					<button class="touch-button" type="button" data-control="right">→</button>
+				</div>
+				<button class="jump-button" id="jumpButton" type="button" data-control="jump" aria-label="Jump">↥</button>
+				<button class="pulse-button" id="pulseButton" type="button" data-control="pulse" aria-label="Pulse" title="Pulse">◎</button>
+			</section>
+		</main>
+
+		<script>
+			import * as THREE from 'three';
+			import RAPIER from '@dimforge/rapier3d-compat';
+
+			const stage = document.querySelector('#gameStage');
+			const mount = document.querySelector('#threeMount');
+			const zoneName = document.querySelector('#zoneName');
+			const zoneHint = document.querySelector('#zoneHint');
+			const speedText = document.querySelector('#speedText');
+			const progressText = document.querySelector('#progressText');
+			const enterButton = document.querySelector('#enterButton');
+			const pulseButton = document.querySelector('#pulseButton');
+			const base = stage?.getAttribute('data-base') ?? '';
+			const keys = new Set();
+			const world = { width: 242, depth: 194 };
+			const carState = {
+				x: 0,
+				y: 0,
+				z: 7,
+				heading: 0,
+				vx: 0,
+				vy: 0,
+				vz: 0,
+				maxSpeed: 19,
+				reverseSpeed: 8.5,
+				acceleration: 27,
+				turnRate: 1.55,
+				grounded: false,
+				jumpHeld: false,
+				jumpQueued: false,
+			};
+			const driveInput = {
+				throttle: 0,
+				steer: 0,
+				boost: 0,
+			};
+			const effects = {
+				dustTimer: 0,
+				boostEnergy: 1,
+				pulseCooldown: 0,
+				pulseQueued: false,
+				particleCursor: 0,
+				collected: 0,
+				cameraShake: 0,
+				wheelSpin: 0,
+				drift: 0,
+			};
+			const messageState = {
+				title: '',
+				text: '',
+				until: 0,
+			};
+			const physics = {
+				world: null,
+				carBody: null,
+				carCollider: null,
+				fixedDt: 1 / 60,
+				accumulator: 0,
+				carRadius: 2.6,
+				ready: false,
+			};
+			const colliderSpecs = [];
+			const jumpPads = [];
+			const animatedProps = [];
+			const particles = [];
+			const pulseRings = [];
+			const collectibles = [];
+			const memoryNodes = [];
+			let activeGate = null;
+			let animationFrame = 0;
+			let lastFrameTime = performance.now();
+			let sceneTime = 0;
+
+			const scene = new THREE.Scene();
+			scene.background = new THREE.Color(0x9fb7a8);
+			scene.fog = new THREE.Fog(0x9fb7a8, 82, 220);
+
+			const camera = new THREE.OrthographicCamera(-20, 20, 15, -15, 0.1, 280);
+			camera.position.set(30, 36, 30);
+			scene.add(camera);
+
+			const overlayScene = new THREE.Scene();
+			const overlayCamera = new THREE.OrthographicCamera(-50, 50, 50, -50, 0.1, 100);
+			overlayCamera.position.set(0, 0, 50);
+			overlayCamera.lookAt(0, 0, 0);
+
+			const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
+			renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+			renderer.shadowMap.enabled = true;
+			renderer.outputColorSpace = THREE.SRGBColorSpace;
+			renderer.autoClear = false;
+			mount?.appendChild(renderer.domElement);
+
+			const materials = {
+				grass: new THREE.MeshStandardMaterial({ color: 0x2d593c, roughness: 0.95 }),
+				grassLight: new THREE.MeshStandardMaterial({ color: 0x477046, roughness: 0.96 }),
+				grassDark: new THREE.MeshStandardMaterial({ color: 0x22452f, roughness: 1 }),
+				meadow: new THREE.MeshStandardMaterial({ color: 0x76934b, roughness: 0.92 }),
+				meadowGold: new THREE.MeshStandardMaterial({ color: 0xc0a65a, roughness: 0.9 }),
+				hill: new THREE.MeshStandardMaterial({ color: 0x56764f, roughness: 0.96 }),
+				hillDark: new THREE.MeshStandardMaterial({ color: 0x385a45, roughness: 0.98 }),
+				mountain: new THREE.MeshStandardMaterial({ color: 0x6b655f, roughness: 0.92 }),
+				snow: new THREE.MeshStandardMaterial({ color: 0xe9eadf, roughness: 0.68 }),
+				road: new THREE.MeshStandardMaterial({ color: 0x3d3931, roughness: 0.88 }),
+				roadLine: new THREE.MeshStandardMaterial({ color: 0xe7dec8, roughness: 0.7 }),
+				car: new THREE.MeshStandardMaterial({ color: 0xd6453b, roughness: 0.56, metalness: 0.08 }),
+				carTop: new THREE.MeshStandardMaterial({ color: 0xfff3d5, roughness: 0.36 }),
+				tire: new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 }),
+				glass: new THREE.MeshStandardMaterial({ color: 0x86c7df, roughness: 0.25, metalness: 0.05 }),
+				signPost: new THREE.MeshStandardMaterial({ color: 0x211f1a, roughness: 0.75 }),
+				cream: new THREE.MeshStandardMaterial({ color: 0xf3ead8, roughness: 0.85 }),
+				playerMarker: new THREE.MeshBasicMaterial({ color: 0xfff3d5 }),
+				brick: new THREE.MeshStandardMaterial({ color: 0x9c4f3e, roughness: 0.72 }),
+				brickTop: new THREE.MeshStandardMaterial({ color: 0xf1d4a8, roughness: 0.74 }),
+				wood: new THREE.MeshStandardMaterial({ color: 0x7b5633, roughness: 0.86 }),
+				bridge: new THREE.MeshStandardMaterial({ color: 0x8a6b42, roughness: 0.84 }),
+				stone: new THREE.MeshStandardMaterial({ color: 0x9aa08d, roughness: 0.95 }),
+				castleWall: new THREE.MeshStandardMaterial({ color: 0xb6b7aa, roughness: 0.82 }),
+				castleRoof: new THREE.MeshStandardMaterial({ color: 0x506b80, roughness: 0.62 }),
+				flowerRed: new THREE.MeshStandardMaterial({ color: 0xd6453b, roughness: 0.7 }),
+				flowerYellow: new THREE.MeshStandardMaterial({ color: 0xe5b84b, roughness: 0.7 }),
+				ramp: new THREE.MeshStandardMaterial({ color: 0xe2b05a, roughness: 0.58, metalness: 0.04 }),
+				pad: new THREE.MeshStandardMaterial({ color: 0x8ed0d6, roughness: 0.34, emissive: 0x237580, emissiveIntensity: 0.22 }),
+				lamp: new THREE.MeshBasicMaterial({ color: 0xffe6a6 }),
+				notesPatch: new THREE.MeshStandardMaterial({ color: 0x405a4f, roughness: 0.96 }),
+				diaryPatch: new THREE.MeshStandardMaterial({ color: 0x6d5657, roughness: 0.94 }),
+				moonPatch: new THREE.MeshStandardMaterial({ color: 0x6b7180, roughness: 0.91 }),
+				labPatch: new THREE.MeshStandardMaterial({ color: 0x47636c, roughness: 0.86 }),
+				water: new THREE.MeshStandardMaterial({
+					color: 0x2f8aa0,
+					roughness: 0.18,
+					metalness: 0.05,
+					transparent: true,
+					opacity: 0.74,
+					emissive: 0x13495a,
+					emissiveIntensity: 0.1,
+				}),
+				waterFoam: new THREE.MeshBasicMaterial({ color: 0xc7efe7, transparent: true, opacity: 0.62 }),
+				page: new THREE.MeshStandardMaterial({ color: 0xf8ebd2, roughness: 0.72 }),
+				ink: new THREE.MeshStandardMaterial({ color: 0x22201b, roughness: 0.82 }),
+				lava: new THREE.MeshStandardMaterial({
+					color: 0xe54b28,
+					roughness: 0.34,
+					emissive: 0xb51f12,
+					emissiveIntensity: 0.85,
+				}),
+				lavaGlow: new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.76, depthWrite: false }),
+				smoke: new THREE.MeshBasicMaterial({ color: 0x5f625b, transparent: true, opacity: 0.38, depthWrite: false }),
+				sparkGold: new THREE.MeshStandardMaterial({
+					color: 0xf0c25c,
+					roughness: 0.28,
+					emissive: 0xb56b1e,
+					emissiveIntensity: 0.48,
+				}),
+				sparkBlue: new THREE.MeshStandardMaterial({
+					color: 0x89d2df,
+					roughness: 0.24,
+					emissive: 0x247b91,
+					emissiveIntensity: 0.48,
+				}),
+				scan: new THREE.MeshBasicMaterial({ color: 0xa8f0e8, transparent: true, opacity: 0.72, depthWrite: false }),
+				boostGlow: new THREE.MeshBasicMaterial({ color: 0xffd37d, transparent: true, opacity: 0.82, depthWrite: false }),
+			};
+
+			const gates = [
+				{ id: 'Garden', zh: '花园', href: '/', x: 0, z: -15.5, radius: 5.5, color: 0xc94338 },
+				{ id: 'Archive', zh: '归档', href: '/blog/', x: -25, z: 0, radius: 5.8, color: 0x236d8f },
+				{ id: 'Lab', zh: '实验室', href: '/lab/', x: 25, z: 0, radius: 5.8, color: 0xb67c2a },
+				{ id: 'About', zh: '关于', href: '/about/', x: 0, z: 20, radius: 5.6, color: 0x377654 },
+			];
+
+			const routeZones = [
+				{ name: '镜池河湾', hint: '河水、桥和涟漪会被扫描波点亮。', x: -29, z: 4, radius: 20 },
+				{ name: '月面庭院', hint: '灰色地块里藏着几枚灵感碎片。', x: 27, z: -19, radius: 15 },
+				{ name: '日记果园', hint: '纸页会在车经过时轻轻摆动。', x: -26, z: 23, radius: 14 },
+				{ name: '信号实验场', hint: '扫描可以唤醒附近的小装置。', x: 27, z: 14, radius: 15 },
+				{ name: '北部草原', hint: '草原更宽，适合加速、漂移和找隐藏碎片。', x: -8, z: -48, radius: 27 },
+				{ name: '城堡山脊', hint: '城墙会挡车，城堡脚下有一枚蓝色碎片。', x: -63, z: 42, radius: 22 },
+				{ name: '火山口', hint: '岩浆会发光，靠近时扫描波会唤醒火山信标。', x: 62, z: -43, radius: 24 },
+			];
+
+			const makeMesh = (geometry, material, position, rotation = [0, 0, 0], castShadow = false, receiveShadow = true) => {
+				const mesh = new THREE.Mesh(geometry, material);
+				mesh.position.set(position[0], position[1], position[2]);
+				mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
+				mesh.castShadow = castShadow;
+				mesh.receiveShadow = receiveShadow;
+				scene.add(mesh);
+				return mesh;
+			};
+
+			const addBoxColliderSpec = (x, z, width, depth, height, label) => {
+				colliderSpecs.push({ type: 'box', x, z, width, depth, height, label });
+			};
+
+			const addCylinderColliderSpec = (x, z, radius, height, label) => {
+				colliderSpecs.push({ type: 'cylinder', x, z, radius, height, label });
+			};
+
+			const makeLabelTexture = (label, color) => {
+				const canvas = document.createElement('canvas');
+				canvas.width = 512;
+				canvas.height = 192;
+				const ctx = canvas.getContext('2d');
+				if (!ctx) return null;
+				ctx.fillStyle = '#fff8e8';
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+				ctx.strokeStyle = color;
+				ctx.lineWidth = 14;
+				ctx.strokeRect(16, 16, canvas.width - 32, canvas.height - 32);
+				ctx.fillStyle = color;
+				ctx.font = '700 68px Atkinson, system-ui, sans-serif';
+				ctx.fillText(label, 52, 92);
+				ctx.fillStyle = '#3a352b';
+				ctx.font = '700 28px Atkinson, system-ui, sans-serif';
+				ctx.fillText('BLOG GATE', 54, 142);
+				const texture = new THREE.CanvasTexture(canvas);
+				texture.colorSpace = THREE.SRGBColorSpace;
+				texture.anisotropy = 4;
+				return texture;
+			};
+
+			const makePlayerTexture = () => {
+				const canvas = document.createElement('canvas');
+				canvas.width = 256;
+				canvas.height = 96;
+				const ctx = canvas.getContext('2d');
+				if (!ctx) return null;
+				ctx.fillStyle = '#fff8e8';
+				ctx.beginPath();
+				ctx.roundRect(10, 10, 236, 76, 24);
+				ctx.fill();
+				ctx.strokeStyle = '#171511';
+				ctx.lineWidth = 8;
+				ctx.stroke();
+				ctx.fillStyle = '#171511';
+				ctx.font = '700 42px Atkinson, system-ui, sans-serif';
+				ctx.textAlign = 'center';
+				ctx.textBaseline = 'middle';
+				ctx.fillText('YOU', 128, 50);
+				const texture = new THREE.CanvasTexture(canvas);
+				texture.colorSpace = THREE.SRGBColorSpace;
+				texture.anisotropy = 4;
+				return texture;
+			};
+
+			const addLights = () => {
+				const hemi = new THREE.HemisphereLight(0xfff4dd, 0x27452e, 2.2);
+				scene.add(hemi);
+
+				const sun = new THREE.DirectionalLight(0xffe3b0, 3.2);
+				sun.position.set(-38, 56, 42);
+				sun.castShadow = true;
+				sun.shadow.mapSize.set(2048, 2048);
+				sun.shadow.camera.left = -104;
+				sun.shadow.camera.right = 104;
+				sun.shadow.camera.top = 92;
+				sun.shadow.camera.bottom = -92;
+				sun.shadow.camera.near = 1;
+				sun.shadow.camera.far = 150;
+				scene.add(sun);
+			};
+
+			const addGround = () => {
+				makeMesh(new THREE.BoxGeometry(world.width + 96, 0.12, world.depth + 96), materials.water, [0, -0.46, 0], [0, 0, 0], false, false);
+				makeMesh(new THREE.BoxGeometry(world.width + 26, 0.24, world.depth + 26), materials.grassLight, [0, -0.38, 0]);
+				makeMesh(new THREE.BoxGeometry(world.width, 0.45, world.depth), materials.grass, [0, -0.25, 0]);
+			};
+
+			const addRoad = (x, z, width, depth) => {
+				makeMesh(new THREE.BoxGeometry(width, 0.14, depth), materials.road, [x, 0.03, z]);
+				const horizontal = width > depth;
+				const count = horizontal ? Math.floor(width / 5) : Math.floor(depth / 5);
+				for (let i = 0; i < count; i += 1) {
+					const offset = (i - count / 2) * 5 + 2.5;
+					makeMesh(
+						new THREE.BoxGeometry(horizontal ? 2.4 : 0.18, 0.06, horizontal ? 0.18 : 2.4),
+						materials.roadLine,
+						[x + (horizontal ? offset : 0), 0.14, z + (horizontal ? 0 : offset)],
+						[0, 0, 0],
+						false,
+						false,
+					);
+				}
+			};
+
+			const addRoads = () => {
+				addRoad(0, 0, 118, 7.2);
+				addRoad(0, 0, 7.2, 92);
+				addRoad(0, -19, 78, 5.4);
+				addRoad(0, 23, 84, 5.4);
+				addRoad(-55, 37, 36, 5.2);
+				addRoad(55, -33, 36, 5.2);
+				addRoad(47, 16, 42, 5.2);
+			};
+
+			const addBuilding = (x, z, width, depth, height, color, label) => {
+				const material = new THREE.MeshStandardMaterial({ color, roughness: 0.78 });
+				const roof = new THREE.MeshStandardMaterial({ color: 0x211f1a, roughness: 0.72 });
+				makeMesh(new THREE.BoxGeometry(width, height, depth), material, [x, height / 2, z], [0, 0, 0], true);
+				makeMesh(new THREE.ConeGeometry(Math.max(width, depth) * 0.68, 2.6, 4), roof, [x, height + 1.3, z], [0, Math.PI / 4, 0], true);
+				addBoxColliderSpec(x, z, width + 1.2, depth + 1.2, height + 1.2, label);
+
+				const labelTexture = makeLabelTexture(label, '#211f1a');
+				if (labelTexture) {
+					const labelMaterial = new THREE.MeshBasicMaterial({ map: labelTexture, transparent: false });
+					const labelMesh = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.88, width * 0.33), labelMaterial);
+					labelMesh.position.set(x, height * 0.6, z + depth / 2 + 0.035);
+					scene.add(labelMesh);
+				}
+			};
+
+			const addBuildings = () => {
+				addBuilding(-27, -20, 12, 8, 8, 0x5c7b59, 'Notes');
+				addBuilding(27, -20, 12, 8, 8.5, 0x665995, 'Moon');
+				addBuilding(-27, 22, 15, 8, 7.6, 0x7b5047, 'Diary');
+				addBuilding(27, 22, 13, 9, 8.2, 0x8b7431, 'Ideas');
+			};
+
+			const addTree = (x, z, scale = 1) => {
+				const trunk = new THREE.MeshStandardMaterial({ color: 0x6a4b2d, roughness: 0.9 });
+				const leaves = new THREE.MeshStandardMaterial({ color: 0x2f7a4d, roughness: 0.9 });
+				makeMesh(new THREE.CylinderGeometry(0.22 * scale, 0.3 * scale, 1.6 * scale, 8), trunk, [x, 0.8 * scale, z], [0, 0, 0], true);
+				makeMesh(new THREE.ConeGeometry(1.1 * scale, 2.4 * scale, 7), leaves, [x, 2.65 * scale, z], [0, 0, 0], true);
+				addCylinderColliderSpec(x, z, 0.72 * scale, 2.2 * scale, 'Tree');
+			};
+
+			const addTrees = () => {
+				const positions = [
+					[-38, -25, 1.2], [-34, -14, 1], [-39, 12, 1.15], [-35, 27, 0.95],
+					[38, -25, 1.1], [34, -13, 0.9], [39, 13, 1.25], [35, 27, 1],
+					[-15, -28, 0.8], [15, -28, 0.8], [-15, 29, 0.9], [15, 29, 0.9],
+					[-74, -22, 1.25], [-79, -7, 0.95], [-69, 14, 1.1], [-48, 49, 1.2],
+					[-74, 52, 0.9], [-53, 31, 0.85], [-41, 58, 1.1], [-20, -57, 0.85],
+					[-3, -60, 0.75], [17, -52, 1], [43, -53, 0.9], [75, -30, 0.82],
+					[77, -9, 1.1], [61, 12, 0.85], [76, 32, 1], [58, 55, 1.25],
+					[39, 49, 0.92], [51, 30, 0.86], [4, 54, 0.95], [-13, 51, 0.82],
+				];
+				positions.forEach(([x, z, scale]) => addTree(x, z, scale));
+			};
+
+			const seededRandom = (seed) => {
+				const value = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
+				return value - Math.floor(value);
+			};
+
+			const isDecorSafe = (x, z) => {
+				const onRoad = (Math.abs(z) < 5 && Math.abs(x) < 62)
+					|| (Math.abs(x) < 5 && Math.abs(z) < 48)
+					|| (Math.abs(z + 19) < 4 && Math.abs(x) < 41)
+					|| (Math.abs(z - 23) < 4 && Math.abs(x) < 44)
+					|| (Math.abs(z - 37) < 4 && x < -36 && x > -74)
+					|| (Math.abs(z + 33) < 4 && x > 36 && x < 74)
+					|| (Math.abs(z - 16) < 4 && x > 25 && x < 70);
+				const nearBuilding = [
+					[-27, -20, 10, 8],
+					[27, -20, 10, 8],
+					[-27, 22, 12, 8],
+					[27, 22, 11, 8],
+					[-63, 42, 17, 16],
+					[62, -43, 16, 16],
+				].some(([cx, cz, hx, hz]) => Math.abs(x - cx) < hx && Math.abs(z - cz) < hz);
+				const nearRiver = [
+					[-62, -45, 23, 8],
+					[-42, -31, 22, 8],
+					[-21, -17, 20, 8],
+					[4, -8, 18, 8],
+					[28, 4, 20, 8],
+					[51, 20, 22, 9],
+					[70, 35, 22, 10],
+				].some(([cx, cz, hx, hz]) => Math.abs(x - cx) < hx && Math.abs(z - cz) < hz);
+				return !onRoad && !nearBuilding && !nearRiver;
+			};
+
+			const addGrassDetails = () => {
+				const grassGeometry = new THREE.ConeGeometry(0.12, 0.72, 3);
+				const flowerGeometry = new THREE.SphereGeometry(0.14, 8, 6);
+				const stoneGeometry = new THREE.DodecahedronGeometry(0.34, 0);
+				const grassMesh = new THREE.InstancedMesh(grassGeometry, materials.grassDark, 1040);
+				const flowerMesh = new THREE.InstancedMesh(flowerGeometry, materials.flowerYellow, 180);
+				const stoneMesh = new THREE.InstancedMesh(stoneGeometry, materials.stone, 132);
+				const dummy = new THREE.Object3D();
+				let grassIndex = 0;
+				let flowerIndex = 0;
+				let stoneIndex = 0;
+
+				for (let i = 0; i < 3300 && grassIndex < 1040; i += 1) {
+					const x = (seededRandom(i + 11) - 0.5) * (world.width - 8);
+					const z = (seededRandom(i + 97) - 0.5) * (world.depth - 8);
+					if (!isDecorSafe(x, z)) continue;
+					const scale = 0.72 + seededRandom(i + 203) * 0.7;
+					dummy.position.set(x, 0.34 * scale, z);
+					dummy.rotation.set(0, seededRandom(i + 304) * Math.PI * 2, 0);
+					dummy.scale.setScalar(scale);
+					dummy.updateMatrix();
+					grassMesh.setMatrixAt(grassIndex, dummy.matrix);
+					grassIndex += 1;
+
+					if (flowerIndex < 180 && seededRandom(i + 401) > 0.7) {
+						dummy.position.set(x + 0.34, 0.2, z - 0.2);
+						dummy.rotation.set(0, 0, 0);
+						dummy.scale.setScalar(1);
+						dummy.updateMatrix();
+						flowerMesh.setMatrixAt(flowerIndex, dummy.matrix);
+						flowerIndex += 1;
+					}
+
+					if (stoneIndex < 132 && seededRandom(i + 503) > 0.84) {
+						dummy.position.set(x - 0.45, 0.18, z + 0.28);
+						dummy.rotation.set(seededRandom(i + 601), seededRandom(i + 602) * Math.PI, seededRandom(i + 603));
+						dummy.scale.setScalar(0.8 + seededRandom(i + 604) * 0.55);
+						dummy.updateMatrix();
+						stoneMesh.setMatrixAt(stoneIndex, dummy.matrix);
+						stoneIndex += 1;
+					}
+				}
+
+				grassMesh.count = grassIndex;
+				flowerMesh.count = flowerIndex;
+				stoneMesh.count = stoneIndex;
+				grassMesh.castShadow = true;
+				flowerMesh.castShadow = true;
+				stoneMesh.castShadow = true;
+				scene.add(grassMesh, flowerMesh, stoneMesh);
+			};
+
+			const addLamp = (x, z) => {
+				makeMesh(new THREE.CylinderGeometry(0.08, 0.1, 2.6, 8), materials.signPost, [x, 1.3, z], [0, 0, 0], true);
+				makeMesh(new THREE.SphereGeometry(0.28, 12, 8), materials.lamp, [x, 2.75, z], [0, 0, 0], false, false);
+				const glow = new THREE.PointLight(0xffd98a, 0.35, 9);
+				glow.position.set(x, 2.9, z);
+				scene.add(glow);
+			};
+
+			const addBench = (x, z, rotation = 0) => {
+				const group = new THREE.Group();
+				group.position.set(x, 0, z);
+				group.rotation.y = rotation;
+				const parts = [
+					[new THREE.BoxGeometry(3.1, 0.22, 0.72), [0, 0.7, 0]],
+					[new THREE.BoxGeometry(3.1, 0.22, 0.28), [0, 1.12, -0.38]],
+					[new THREE.BoxGeometry(0.18, 0.7, 0.18), [-1.2, 0.34, 0.18]],
+					[new THREE.BoxGeometry(0.18, 0.7, 0.18), [1.2, 0.34, 0.18]],
+				];
+				parts.forEach(([geometry, position]) => {
+					const mesh = new THREE.Mesh(geometry, materials.wood);
+					mesh.position.set(position[0], position[1], position[2]);
+					mesh.castShadow = true;
+					mesh.receiveShadow = true;
+					group.add(mesh);
+				});
+				scene.add(group);
+			};
+
+			const addBrickWall = (x, z, width, rotation = 0) => {
+				const rows = 3;
+				const columns = Math.max(3, Math.round(width / 1.05));
+				const group = new THREE.Group();
+				group.position.set(x, 0, z);
+				group.rotation.y = rotation;
+				for (let row = 0; row < rows; row += 1) {
+					for (let col = 0; col < columns; col += 1) {
+						const brick = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.42, 0.58), row === rows - 1 ? materials.brickTop : materials.brick);
+						brick.position.set((col - columns / 2 + 0.5) * 1.02 + (row % 2) * 0.28, 0.24 + row * 0.43, 0);
+						brick.castShadow = true;
+						brick.receiveShadow = true;
+						group.add(brick);
+					}
+				}
+				scene.add(group);
+				const colliderWidth = Math.abs(Math.cos(rotation)) > 0.5 ? width : 0.8;
+				const colliderDepth = Math.abs(Math.cos(rotation)) > 0.5 ? 0.8 : width;
+				addBoxColliderSpec(x, z, colliderWidth, colliderDepth, 1.65, 'Brick wall');
+			};
+
+			const addJumpPad = (x, z, rotation = 0) => {
+				const slab = makeMesh(new THREE.BoxGeometry(5.3, 0.22, 3.2), materials.ramp, [x, 0.22, z], [-0.12, rotation, 0], true);
+				const pad = makeMesh(new THREE.BoxGeometry(3.7, 0.08, 1.15), materials.pad, [x, 0.42, z], [-0.12, rotation, 0], false, false);
+				const ring = makeMesh(new THREE.TorusGeometry(2.85, 0.08, 8, 44), materials.pad, [x, 0.62, z], [Math.PI / 2, 0, 0], false, false);
+				animatedProps.push({ mesh: ring, baseY: 0.62, spin: 1.4 });
+				jumpPads.push({ x, z, radius: 4.2, boost: 14, cooldown: 0 });
+				return { slab, pad, ring };
+			};
+
+			const addBridge = (x, z, width, depth, rotation = 0) => {
+				const group = new THREE.Group();
+				group.position.set(x, 0, z);
+				group.rotation.y = rotation;
+				const deck = new THREE.Mesh(new THREE.BoxGeometry(width, 0.32, depth), materials.bridge);
+				deck.position.y = 0.32;
+				deck.castShadow = true;
+				deck.receiveShadow = true;
+				group.add(deck);
+				[-1, 1].forEach((side) => {
+					const rail = new THREE.Mesh(new THREE.BoxGeometry(width, 0.34, 0.16), materials.wood);
+					rail.position.set(0, 0.74, side * depth * 0.38);
+					rail.castShadow = true;
+					group.add(rail);
+					for (let i = -2; i <= 2; i += 1) {
+						const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.92, 0.16), materials.wood);
+						post.position.set((i / 2) * width * 0.38, 0.56, side * depth * 0.38);
+						post.castShadow = true;
+						group.add(post);
+					}
+				});
+				scene.add(group);
+			};
+
+			const addRoadDetails = () => {
+				[-32, -16, 16, 32].forEach((x) => {
+					addLamp(x, -5.8);
+					addLamp(x, 5.8);
+				});
+				[-21, 21].forEach((z) => {
+					addLamp(-5.8, z);
+					addLamp(5.8, z);
+				});
+				addBench(-14, 10, Math.PI / 5);
+				addBench(14, -12, -Math.PI / 5);
+				addBrickWall(-14, -10.5, 6.4, 0);
+				addBrickWall(12, 14.5, 5.4, Math.PI / 2);
+				addJumpPad(-10, 0, Math.PI / 2);
+				addJumpPad(11, 22.5, 0);
+				addBridge(7, -5.5, 14, 7, 0.32);
+				addBridge(49, 16.5, 16, 6.6, -0.24);
+				addBridge(-46, -31, 14, 6.2, -0.22);
+			};
+
+			const addDecorations = () => {
+				addGrassDetails();
+				addRoadDetails();
+			};
+
+			const addAreaPatch = (x, z, width, depth, material, rotation = 0) => {
+				return makeMesh(
+					new THREE.BoxGeometry(width, 0.08, depth),
+					material,
+					[x, 0.005, z],
+					[0, rotation, 0],
+					false,
+					false,
+				);
+			};
+
+			const addPond = (x, z, radiusX, radiusZ) => {
+				const pond = makeMesh(new THREE.CylinderGeometry(1, 1, 0.08, 72), materials.water, [x, 0.11, z], [0, 0, 0], false, false);
+				pond.scale.set(radiusX, 1, radiusZ);
+				const rippleGeometry = new THREE.TorusGeometry(1, 0.025, 8, 80);
+				[0.42, 0.68, 0.9].forEach((scale, index) => {
+					const ripple = makeMesh(rippleGeometry, materials.waterFoam.clone(), [x, 0.18 + index * 0.012, z], [Math.PI / 2, 0, 0], false, false);
+					ripple.scale.set(radiusX * scale, radiusZ * scale, 1);
+					animatedProps.push({ mesh: ripple, baseY: ripple.position.y, spin: index % 2 === 0 ? 0.25 : -0.18, wobble: 0.025 });
+				});
+			};
+
+			const addCrater = (x, z, radius, color = 0x555d6b) => {
+				const floor = makeMesh(
+					new THREE.CylinderGeometry(radius, radius * 0.92, 0.08, 32),
+					new THREE.MeshStandardMaterial({ color, roughness: 0.98 }),
+					[x, 0.13, z],
+					[0, 0, 0],
+					false,
+					false,
+				);
+				floor.scale.y = 0.58;
+				makeMesh(new THREE.TorusGeometry(radius * 0.98, 0.08, 8, 40), materials.stone, [x, 0.24, z], [Math.PI / 2, 0, 0], false, false);
+			};
+
+			const addRiverSegment = (x, z, length, width, rotation = 0) => {
+				makeMesh(new THREE.BoxGeometry(length, 0.08, width), materials.water, [x, 0.13, z], [0, rotation, 0], false, false);
+				const edgeOffsetX = Math.sin(rotation) * width * 0.48;
+				const edgeOffsetZ = Math.cos(rotation) * width * 0.48;
+				[-1, 1].forEach((side) => {
+					makeMesh(
+						new THREE.BoxGeometry(length * 0.94, 0.035, 0.18),
+						materials.waterFoam,
+						[x + edgeOffsetX * side, 0.19, z + edgeOffsetZ * side],
+						[0, rotation, 0],
+						false,
+						false,
+					);
+				});
+			};
+
+			const addRiver = () => {
+				[
+					[-64, -47, 38, 9.5, -0.52],
+					[-43, -32, 38, 8.8, -0.3],
+					[-21, -18, 35, 8.2, 0.18],
+					[5, -7.5, 34, 8.4, 0.32],
+					[29, 4.5, 36, 8.8, 0.18],
+					[52, 20.5, 40, 9.2, 0.52],
+					[71, 36, 35, 10.5, 0.3],
+				].forEach(([x, z, length, width, rotation]) => addRiverSegment(x, z, length, width, rotation));
+				[
+					[-43, -32, 5.8, 4],
+					[-21, -18, 5.4, 3.6],
+					[5, -7.5, 5.2, 3.8],
+					[29, 4.5, 5.8, 4],
+					[52, 20.5, 6.2, 4.4],
+				].forEach(([x, z, rx, rz]) => addPond(x, z, rx, rz));
+				addPond(-54, -19, 7.8, 5.2);
+				addPond(65, 34, 8.6, 5.4);
+			};
+
+			const addHill = (x, z, radiusX, radiusZ, height, material = materials.hill) => {
+				const hill = makeMesh(new THREE.SphereGeometry(1, 28, 14), material, [x, 0.06, z], [0, 0, 0], true);
+				hill.scale.set(radiusX, height, radiusZ);
+				addCylinderColliderSpec(x, z, Math.min(radiusX, radiusZ) * 0.72, height * 1.1, 'Hill');
+				return hill;
+			};
+
+			const addHillCluster = () => {
+				[
+					[-68, -11, 8.4, 5.2, 3.1, materials.hillDark],
+					[-75, -3, 5.2, 4.1, 2.2, materials.hill],
+					[-55, 4, 6.6, 4.4, 2.4, materials.hill],
+					[-7, -55, 8.8, 5.8, 2.8, materials.meadow],
+					[5, -48, 5.8, 4.2, 2.1, materials.hill],
+					[46, 44, 7.5, 5.6, 2.7, materials.hillDark],
+					[59, 52, 5.6, 4.1, 2.2, materials.hill],
+				].forEach(([x, z, rx, rz, height, material]) => addHill(x, z, rx, rz, height, material));
+			};
+
+			const addPrairieGrass = () => {
+				const bladeGeometry = new THREE.ConeGeometry(0.1, 1.18, 3);
+				const bladeMesh = new THREE.InstancedMesh(bladeGeometry, materials.meadowGold, 360);
+				const dummy = new THREE.Object3D();
+				let index = 0;
+				for (let i = 0; i < 900 && index < 360; i += 1) {
+					const x = -25 + (seededRandom(i + 700) - 0.5) * 72;
+					const z = -47 + (seededRandom(i + 811) - 0.5) * 34;
+					if (!isDecorSafe(x, z)) continue;
+					const scale = 0.75 + seededRandom(i + 911) * 1.1;
+					dummy.position.set(x, 0.54 * scale, z);
+					dummy.rotation.set(0, seededRandom(i + 1011) * Math.PI * 2, seededRandom(i + 1012) * 0.18);
+					dummy.scale.setScalar(scale);
+					dummy.updateMatrix();
+					bladeMesh.setMatrixAt(index, dummy.matrix);
+					index += 1;
+				}
+				bladeMesh.count = index;
+				bladeMesh.castShadow = true;
+				scene.add(bladeMesh);
+			};
+
+			const addCastle = (x, z) => {
+				const group = new THREE.Group();
+				group.position.set(x, 0, z);
+				const addPart = (geometry, material, position, rotation = [0, 0, 0]) => {
+					const mesh = new THREE.Mesh(geometry, material);
+					mesh.position.set(position[0], position[1], position[2]);
+					mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
+					mesh.castShadow = true;
+					mesh.receiveShadow = true;
+					group.add(mesh);
+					return mesh;
+				};
+
+				addPart(new THREE.BoxGeometry(18, 4.8, 2.2), materials.castleWall, [0, 2.4, -6]);
+				addPart(new THREE.BoxGeometry(18, 4.8, 2.2), materials.castleWall, [0, 2.4, 6]);
+				addPart(new THREE.BoxGeometry(2.2, 4.8, 14), materials.castleWall, [-9, 2.4, 0]);
+				addPart(new THREE.BoxGeometry(2.2, 4.8, 14), materials.castleWall, [9, 2.4, 0]);
+				addPart(new THREE.BoxGeometry(6.4, 8.8, 6.4), materials.castleWall, [0, 4.4, 0]);
+				addPart(new THREE.ConeGeometry(5.3, 3.2, 4), materials.castleRoof, [0, 10.45, 0], [0, Math.PI / 4, 0]);
+				[
+					[-9, -6],
+					[9, -6],
+					[-9, 6],
+					[9, 6],
+				].forEach(([tx, tz]) => {
+					addPart(new THREE.CylinderGeometry(1.75, 2.05, 7.4, 12), materials.castleWall, [tx, 3.7, tz]);
+					addPart(new THREE.ConeGeometry(2.25, 2.6, 12), materials.castleRoof, [tx, 8.7, tz]);
+				});
+				const gate = addPart(new THREE.BoxGeometry(4.2, 3.1, 0.28), materials.wood, [0, 1.55, -7.18]);
+				gate.scale.y = 0.95;
+				const flagPole = addPart(new THREE.CylinderGeometry(0.08, 0.08, 4.4, 8), materials.signPost, [0, 13.1, 0]);
+				const flag = addPart(new THREE.BoxGeometry(2.4, 1.2, 0.08), materials.car, [1.25, 14.2, 0]);
+				animatedProps.push({ mesh: flag, baseY: flag.position.y, spin: 0.08, wobble: 0.16, axis: 'y' });
+				scene.add(group);
+				addBoxColliderSpec(x, z, 21, 17, 9.5, 'Castle');
+			};
+
+			const addVolcano = (x, z) => {
+				const base = makeMesh(new THREE.ConeGeometry(12, 14, 36), materials.mountain, [x, 7, z], [0, 0, 0], true);
+				base.scale.set(1.12, 1, 0.92);
+				makeMesh(new THREE.ConeGeometry(4.2, 2.2, 36, 1, true), materials.lava, [x, 14.2, z], [Math.PI, 0, 0], false, false);
+				makeMesh(new THREE.CylinderGeometry(2.55, 3.2, 0.16, 36), materials.lavaGlow, [x, 14.75, z], [0, 0, 0], false, false);
+				[
+					[2.6, 6.2, 0.18],
+					[-3.2, 5.2, -0.72],
+					[0.2, 7.4, 1.58],
+				].forEach(([offset, length, rotation]) => {
+					makeMesh(new THREE.BoxGeometry(1.15, 0.14, length), materials.lava, [x + offset, 6.5, z + 2.2], [-0.58, rotation, 0], false, false);
+				});
+				[
+					[0, 18, 0, 1.6],
+					[-1.8, 20.2, 0.8, 1.2],
+					[1.7, 21.8, -0.5, 1.45],
+					[0.5, 24.2, 1.5, 1.1],
+				].forEach(([sx, sy, sz, scale], index) => {
+					const smoke = makeMesh(new THREE.SphereGeometry(1, 16, 10), materials.smoke.clone(), [x + sx, sy, z + sz], [0, 0, 0], false, false);
+					smoke.scale.setScalar(scale);
+					animatedProps.push({ mesh: smoke, baseY: sy, spin: 0.06 + index * 0.02, wobble: 0.42, axis: 'y' });
+				});
+				const glow = new THREE.PointLight(0xff6b35, 1.8, 28);
+				glow.position.set(x, 12.2, z);
+				scene.add(glow);
+				addCylinderColliderSpec(x, z, 10.2, 14, 'Volcano');
+			};
+
+			const makePageTexture = (title) => {
+				const canvas = document.createElement('canvas');
+				canvas.width = 256;
+				canvas.height = 192;
+				const ctx = canvas.getContext('2d');
+				if (!ctx) return null;
+				ctx.fillStyle = '#f8ebd2';
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+				ctx.strokeStyle = '#312e27';
+				ctx.lineWidth = 7;
+				ctx.strokeRect(13, 13, canvas.width - 26, canvas.height - 26);
+				ctx.fillStyle = '#312e27';
+				ctx.font = '700 28px Georgia, serif';
+				ctx.fillText(title, 28, 48);
+				ctx.lineWidth = 4;
+				for (let i = 0; i < 4; i += 1) {
+					ctx.beginPath();
+					ctx.moveTo(30, 78 + i * 24);
+					ctx.lineTo(220 - i * 16, 78 + i * 24);
+					ctx.stroke();
+				}
+				const texture = new THREE.CanvasTexture(canvas);
+				texture.colorSpace = THREE.SRGBColorSpace;
+				texture.anisotropy = 4;
+				return texture;
+			};
+
+			const addFloatingPage = (x, z, title, rotation = 0) => {
+				const texture = makePageTexture(title);
+				const material = texture ? new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide }) : materials.page;
+				const page = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 1.55), material);
+				page.position.set(x, 2.1, z);
+				page.rotation.set(-0.16, rotation, 0.08);
+				page.castShadow = true;
+				scene.add(page);
+				animatedProps.push({ mesh: page, baseY: page.position.y, spin: 0.08, wobble: 0.28, axis: 'y' });
+			};
+
+			const addSignalDish = (x, z, rotation = 0) => {
+				const group = new THREE.Group();
+				group.position.set(x, 0, z);
+				group.rotation.y = rotation;
+				const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 2.2, 10), materials.signPost);
+				pole.position.y = 1.1;
+				pole.castShadow = true;
+				group.add(pole);
+				const dish = new THREE.Mesh(new THREE.ConeGeometry(1.1, 0.42, 28, 1, true), materials.pad);
+				dish.position.set(0, 2.25, -0.16);
+				dish.rotation.x = Math.PI / 2.75;
+				dish.castShadow = true;
+				group.add(dish);
+				const dot = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), materials.lamp);
+				dot.position.set(0, 2.28, -0.78);
+				group.add(dot);
+				scene.add(group);
+				animatedProps.push({ mesh: dish, baseY: dish.position.y, spin: 0.16, wobble: 0.08, axis: 'z' });
+				addCylinderColliderSpec(x, z, 0.72, 2.6, 'Signal dish');
+			};
+
+			const addWindmill = (x, z) => {
+				const group = new THREE.Group();
+				group.position.set(x, 0, z);
+				const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.36, 3.8, 8), materials.wood);
+				tower.position.y = 1.9;
+				tower.castShadow = true;
+				group.add(tower);
+				const hub = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 10), materials.pad);
+				hub.position.set(0, 3.92, -0.16);
+				group.add(hub);
+				const blades = new THREE.Group();
+				blades.position.copy(hub.position);
+				[0, Math.PI / 2, Math.PI, Math.PI * 1.5].forEach((angle) => {
+					const blade = new THREE.Mesh(new THREE.BoxGeometry(0.32, 1.95, 0.1), materials.cream);
+					blade.position.set(Math.sin(angle) * 0.72, Math.cos(angle) * 0.72, -0.18);
+					blade.rotation.z = angle;
+					blade.castShadow = true;
+					blades.add(blade);
+				});
+				group.add(blades);
+				scene.add(group);
+				animatedProps.push({ mesh: blades, baseY: blades.position.y, spin: 1.05, wobble: 0, axis: 'z' });
+				addCylinderColliderSpec(x, z, 0.85, 3.9, 'Windmill');
+			};
+
+			const addMoonArtifact = (x, z) => {
+				const base = makeMesh(new THREE.CylinderGeometry(1.35, 1.7, 0.72, 32), materials.stone, [x, 0.36, z], [0, 0, 0], true);
+				const moon = makeMesh(new THREE.SphereGeometry(1.05, 24, 16), materials.moonPatch, [x, 3.1, z], [0, 0, 0], true, false);
+				makeMesh(new THREE.TorusGeometry(2.0, 0.035, 8, 64), materials.waterFoam, [x, 3.1, z], [Math.PI / 2.6, 0, 0.25], false, false);
+				animatedProps.push({ mesh: moon, baseY: moon.position.y, spin: 0.42, wobble: 0.22, axis: 'y' });
+				addCylinderColliderSpec(x, z, 1.45, 1.6, 'Moon artifact');
+				return base;
+			};
+
+			const addWorldBiomes = () => {
+				addAreaPatch(-27, -20, 23, 18, materials.notesPatch, -0.08);
+				addAreaPatch(27, -20, 23, 18, materials.moonPatch, 0.06);
+				addAreaPatch(-27, 22, 25, 18, materials.diaryPatch, 0.04);
+				addAreaPatch(27, 22, 24, 18, materials.labPatch, -0.05);
+				addAreaPatch(-10, -49, 78, 32, materials.meadow, 0.03);
+				addAreaPatch(-63, 42, 42, 31, materials.hillDark, -0.08);
+				addAreaPatch(62, -43, 42, 34, materials.mountain, 0.12);
+				addAreaPatch(48, 42, 39, 27, materials.meadowGold, -0.05);
+
+				addRiver();
+				addPond(-33, 8.6, 4.9, 3.5);
+				addPond(-36, 15.5, 2.6, 1.7);
+				addPond(44, -23, 4.2, 2.8);
+				addPond(-70, 6, 4.5, 3);
+
+				[
+					[18.8, -11.8, 1.7],
+					[33.6, -28.2, 1.35],
+					[36.4, -14.5, 0.9],
+					[21.6, -27.6, 0.74],
+				].forEach(([x, z, radius]) => addCrater(x, z, radius));
+
+				addMoonArtifact(20.5, -16);
+				addSignalDish(18, 12.5, Math.PI / 6);
+				addSignalDish(34.5, 12, -Math.PI / 4);
+				addWindmill(34, 27.5);
+				addHillCluster();
+				addPrairieGrass();
+				addCastle(-63, 42);
+				addVolcano(62, -43);
+
+				addFloatingPage(-36, 23.5, 'dream', Math.PI / 5);
+				addFloatingPage(-19.5, 15.2, 'note', -Math.PI / 4);
+				addFloatingPage(-20, 28.8, 'today', Math.PI / 2.8);
+			};
+
+			const addCollectible = (x, z, color, message) => {
+				const group = new THREE.Group();
+				group.position.set(x, 1.25, z);
+				const material = color === 'blue' ? materials.sparkBlue : materials.sparkGold;
+				const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.72, 0), material);
+				core.castShadow = true;
+				group.add(core);
+				const ring = new THREE.Mesh(new THREE.TorusGeometry(1.05, 0.04, 8, 36), materials.scan.clone());
+				ring.rotation.x = Math.PI / 2;
+				group.add(ring);
+				scene.add(group);
+				collectibles.push({
+					group,
+					core,
+					ring,
+					baseY: group.position.y,
+					color: color === 'blue' ? 0x89d2df : 0xf0c25c,
+					message,
+					collected: false,
+					magnetized: 0,
+				});
+			};
+
+			const addCollectibles = () => {
+				[
+					[-36, -7, 'gold', '一段适合写成札记的想法。'],
+					[-20, -27, 'blue', '一块被月光照亮的代码注释。'],
+					[-12, -14, 'gold', '旧笔记里冒出来的新标题。'],
+					[13, -27, 'blue', '实验页的一颗备用火花。'],
+					[37, -8, 'gold', '路灯下面的一小段灵感。'],
+					[32, 7.5, 'blue', '信号塔捕捉到的微弱回声。'],
+					[16, 17, 'gold', '跳台之后的一次轻快落地。'],
+					[34, 27, 'blue', '风车旁边旋转的念头。'],
+					[4, 28, 'gold', '关于页面附近的一句自我介绍。'],
+					[-11, 27, 'blue', '日记树影里的一张便签。'],
+					[-36, 13, 'gold', '水面反射出的一条句子。'],
+					[-18, 6, 'blue', '归档入口旁边的隐藏脚注。'],
+					[-61, 35, 'blue', '城堡门口的一枚旧钥匙。'],
+					[-76, 49, 'gold', '城墙阴影里的一页长日记。'],
+					[57, -34, 'gold', '火山坡上烫手的灵感。'],
+					[71, -49, 'blue', '岩浆光里的一段实验记录。'],
+					[-12, -55, 'gold', '草原深处被风吹亮的标题。'],
+					[49, 48, 'blue', '南坡高草里的一颗蓝色回声。'],
+				].forEach(([x, z, color, message]) => addCollectible(x, z, color, message));
+			};
+
+			const addMemoryNode = (x, z, title, message, color) => {
+				const group = new THREE.Group();
+				group.position.set(x, 0, z);
+				const material = new THREE.MeshStandardMaterial({
+					color,
+					roughness: 0.48,
+					emissive: color,
+					emissiveIntensity: 0.05,
+				});
+				const plinth = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.4, 0.5, 8), materials.stone);
+				plinth.position.y = 0.25;
+				plinth.castShadow = true;
+				group.add(plinth);
+				const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.76, 2.35, 0.76), material);
+				pillar.position.y = 1.58;
+				pillar.castShadow = true;
+				group.add(pillar);
+				const halo = new THREE.Mesh(new THREE.TorusGeometry(1.34, 0.045, 8, 54), materials.scan.clone());
+				halo.position.y = 2.95;
+				halo.rotation.x = Math.PI / 2;
+				group.add(halo);
+				scene.add(group);
+				memoryNodes.push({ group, halo, material, x, z, title, message, active: false, pulse: 0 });
+				addCylinderColliderSpec(x, z, 1.2, 2.8, title);
+			};
+
+			const addMemoryNodes = () => {
+				addMemoryNode(-30.5, -11, 'Notes Beacon', '这块碑会把散乱笔记整理成一条路线。', 0x9fbf7a);
+				addMemoryNode(19.4, -5.5, 'Moon Dial', '月相仪醒了，附近的碎片会变得更亮。', 0x8ed0d6);
+				addMemoryNode(-15.8, 18.2, 'Diary Bell', '日记区响了一下，像翻页前的停顿。', 0xd8a06d);
+				addMemoryNode(30.5, 10.6, 'Signal Mast', '实验室收到扫描波，地图边缘出现回声。', 0xe2b05a);
+				addMemoryNode(-57, 34, 'Castle Bell', '城堡信标被唤醒，远处城墙像目录一样展开。', 0x8aa0b4);
+				addMemoryNode(52, -33.5, 'Volcano Core', '火山信标回应了，岩浆边缘亮了一圈。', 0xe46f2f);
+			};
+
+			const createParticlePool = () => {
+				const geometry = new THREE.SphereGeometry(0.18, 8, 6);
+				for (let i = 0; i < 110; i += 1) {
+					const material = new THREE.MeshBasicMaterial({
+						color: 0xffffff,
+						transparent: true,
+						opacity: 0,
+						depthWrite: false,
+					});
+					const particle = new THREE.Mesh(geometry, material);
+					particle.visible = false;
+					particle.userData.velocity = new THREE.Vector3();
+					scene.add(particle);
+					particles.push(particle);
+				}
+			};
+
+			const spawnParticle = ({ x, y, z, color = 0xfff3d5, size = 1, life = 0.55, velocity = new THREE.Vector3(), grow = 0.8 }) => {
+				if (particles.length === 0) return;
+				const particle = particles[effects.particleCursor % particles.length];
+				effects.particleCursor += 1;
+				particle.visible = true;
+				particle.position.set(x, y, z);
+				particle.scale.setScalar(size);
+				particle.material.color.setHex(color);
+				particle.material.opacity = 0.92;
+				particle.userData.age = 0;
+				particle.userData.life = life;
+				particle.userData.grow = grow;
+				particle.userData.baseSize = size;
+				particle.userData.velocity.copy(velocity);
+			};
+
+			const emitBurst = (x, y, z, color, count = 22) => {
+				for (let i = 0; i < count; i += 1) {
+					const angle = (i / count) * Math.PI * 2 + seededRandom(i + sceneTime * 10) * 0.35;
+					const speed = 2.2 + seededRandom(i + 41) * 4.4;
+					spawnParticle({
+						x,
+						y,
+						z,
+						color,
+						size: 0.55 + seededRandom(i + 72) * 0.55,
+						life: 0.5 + seededRandom(i + 18) * 0.45,
+						grow: 1.65,
+						velocity: new THREE.Vector3(Math.cos(angle) * speed, 1.2 + seededRandom(i + 9) * 3.2, Math.sin(angle) * speed),
+					});
+				}
+			};
+
+			const setTransientMessage = (title, text, duration = 3.2) => {
+				messageState.title = title;
+				messageState.text = text;
+				messageState.until = sceneTime + duration;
+			};
+
+			const collectSpark = (spark, byPulse = false) => {
+				if (spark.collected) return;
+				spark.collected = true;
+				spark.group.visible = false;
+				effects.collected += 1;
+				effects.cameraShake = Math.max(effects.cameraShake, 0.16);
+				emitBurst(spark.group.position.x, 1.6, spark.group.position.z, spark.color, byPulse ? 30 : 22);
+				const remaining = Math.max(0, collectibles.length - effects.collected);
+				setTransientMessage(
+					byPulse ? '扫描捕获' : '灵感捕获',
+					remaining === 0 ? '灵感碎片已经全部点亮。' : `${spark.message} 还剩 ${remaining} 枚。`,
+					2.8,
+				);
+			};
+
+			const createPulse = () => {
+				if (effects.pulseCooldown > 0) return;
+				effects.pulseCooldown = 1.35;
+				effects.cameraShake = Math.max(effects.cameraShake, 0.12);
+				const material = materials.scan.clone();
+				material.opacity = 0.82;
+				const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.055, 8, 96), material);
+				ring.position.set(carState.x, 0.46, carState.z);
+				ring.rotation.x = Math.PI / 2;
+				ring.renderOrder = 8;
+				scene.add(ring);
+				pulseRings.push({ mesh: ring, material, age: 0, life: 0.82, maxRadius: 18 });
+
+				let hitSomething = false;
+				collectibles.forEach((spark) => {
+					if (spark.collected) return;
+					const distance = Math.hypot(carState.x - spark.group.position.x, carState.z - spark.group.position.z);
+					if (distance < 14.5) {
+						spark.magnetized = 1.4;
+						hitSomething = true;
+					}
+				});
+
+				memoryNodes.forEach((node) => {
+					const distance = Math.hypot(carState.x - node.x, carState.z - node.z);
+					if (distance < 16) {
+						node.active = true;
+						node.pulse = 1;
+						node.material.emissiveIntensity = 0.52;
+						setTransientMessage(node.title, node.message, 3.2);
+						emitBurst(node.x, 2.8, node.z, node.material.color.getHex(), 16);
+						hitSomething = true;
+					}
+				});
+
+				if (!hitSomething) {
+					setTransientMessage('信号脉冲', '扫描波扩散出去了，附近暂时没有可唤醒的东西。', 2.2);
+				}
+			};
+
+			const updatePulseRings = (dt) => {
+				for (let i = pulseRings.length - 1; i >= 0; i -= 1) {
+					const pulse = pulseRings[i];
+					pulse.age += dt;
+					const t = pulse.age / pulse.life;
+					const radius = 1 + t * pulse.maxRadius;
+					pulse.mesh.scale.set(radius, radius, radius);
+					pulse.material.opacity = Math.max(0, (1 - t) * 0.82);
+					pulse.mesh.position.y = 0.46 + Math.sin(t * Math.PI) * 0.08;
+					if (t >= 1) {
+						scene.remove(pulse.mesh);
+						pulse.mesh.geometry.dispose();
+						pulse.material.dispose();
+						pulseRings.splice(i, 1);
+					}
+				}
+			};
+
+			const updateCollectibles = (dt) => {
+				collectibles.forEach((spark, index) => {
+					if (spark.collected) return;
+					spark.group.rotation.y += dt * (1.6 + index * 0.03);
+					spark.group.position.y = spark.baseY + Math.sin(sceneTime * 2.4 + index) * 0.22;
+					spark.ring.rotation.z -= dt * 1.8;
+					if (spark.magnetized > 0) {
+						spark.magnetized = Math.max(0, spark.magnetized - dt);
+						const target = new THREE.Vector3(carState.x, 1.6, carState.z);
+						spark.group.position.lerp(target, 1 - Math.pow(0.02, dt));
+					}
+					const distance = Math.hypot(carState.x - spark.group.position.x, carState.z - spark.group.position.z);
+					if (distance < 3.1) collectSpark(spark, spark.magnetized > 0);
+				});
+			};
+
+			const updateMemoryNodes = (dt) => {
+				memoryNodes.forEach((node, index) => {
+					node.halo.rotation.z += dt * (node.active ? 1.4 : 0.38);
+					node.halo.position.y = 2.95 + Math.sin(sceneTime * 2.1 + index) * 0.12;
+					node.pulse = Math.max(0, node.pulse - dt * 0.75);
+					const activeGlow = node.active ? 0.22 : 0.05;
+					node.material.emissiveIntensity = activeGlow + node.pulse * 0.35;
+					node.group.scale.setScalar(1 + node.pulse * 0.04);
+				});
+			};
+
+			const updateParticles = (dt) => {
+				particles.forEach((particle) => {
+					if (!particle.visible) return;
+					particle.userData.age += dt;
+					const age = particle.userData.age;
+					const life = particle.userData.life;
+					const t = age / life;
+					if (t >= 1) {
+						particle.visible = false;
+						particle.material.opacity = 0;
+						return;
+					}
+					particle.position.addScaledVector(particle.userData.velocity, dt);
+					particle.userData.velocity.y -= 2.4 * dt;
+					const scale = particle.userData.baseSize * (1 + t * particle.userData.grow);
+					particle.scale.setScalar(scale);
+					particle.material.opacity = Math.max(0, Math.pow(1 - t, 1.7) * 0.86);
+				});
+			};
+
+			const emitDrivingEffects = (dt) => {
+				const speed = Math.hypot(carState.vx, carState.vz);
+				if (!carState.grounded || speed < 3) return;
+				effects.dustTimer -= dt;
+				const drifting = effects.drift > 0.32;
+				const boosting = driveInput.boost > 0.35 && driveInput.throttle > 0.25 && effects.boostEnergy > 0.02;
+				if (effects.dustTimer > 0 && !boosting) return;
+				effects.dustTimer = boosting ? 0.018 : drifting ? 0.035 : 0.07;
+				const backX = Math.sin(carState.heading);
+				const backZ = Math.cos(carState.heading);
+				const rightX = Math.cos(carState.heading);
+				const rightZ = -Math.sin(carState.heading);
+				[-1, 1].forEach((side) => {
+					const color = boosting ? 0xffd37d : drifting ? 0xc8d0bd : 0x9fa68c;
+					spawnParticle({
+						x: carState.x + backX * 2.4 + rightX * side * 1.28,
+						y: 0.42,
+						z: carState.z + backZ * 2.4 + rightZ * side * 1.28,
+						color,
+						size: boosting ? 0.72 : 0.48,
+						life: boosting ? 0.42 : 0.68,
+						grow: boosting ? 1.2 : 1.85,
+						velocity: new THREE.Vector3(backX * (boosting ? 5.5 : 2.1), 0.55, backZ * (boosting ? 5.5 : 2.1)),
+					});
+				});
+			};
+
+			const updateInteractions = (dt) => {
+				effects.pulseCooldown = Math.max(0, effects.pulseCooldown - dt);
+				if (effects.pulseQueued) {
+					effects.pulseQueued = false;
+					createPulse();
+				}
+				updateCollectibles(dt);
+				updateMemoryNodes(dt);
+				updatePulseRings(dt);
+				emitDrivingEffects(dt);
+				updateParticles(dt);
+			};
+
+			const addGate = (gate) => {
+				const accent = new THREE.MeshStandardMaterial({
+					color: gate.color,
+					roughness: 0.55,
+					emissive: gate.color,
+					emissiveIntensity: 0.18,
+				});
+				const disk = makeMesh(new THREE.CylinderGeometry(gate.radius, gate.radius, 0.08, 48), accent, [gate.x, 0.18, gate.z], [0, 0, 0], false, false);
+				const ring = makeMesh(new THREE.TorusGeometry(gate.radius, 0.08, 8, 48), accent, [gate.x, 0.35, gate.z], [Math.PI / 2, 0, 0], false, false);
+				gate.disk = disk;
+				gate.ring = ring;
+				gate.accent = accent;
+
+				const signTexture = makeLabelTexture(gate.id, `#${gate.color.toString(16).padStart(6, '0')}`);
+				const signMaterial = signTexture
+					? new THREE.MeshBasicMaterial({ map: signTexture })
+					: new THREE.MeshBasicMaterial({ color: gate.color });
+				const sign = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 2.05), signMaterial);
+				const roadFacing = Math.atan2(gate.x, gate.z);
+				sign.position.set(gate.x, 3.3, gate.z);
+				sign.rotation.y = roadFacing;
+				scene.add(sign);
+
+				makeMesh(new THREE.CylinderGeometry(0.12, 0.12, 3.2, 8), materials.signPost, [gate.x - 1.95, 1.6, gate.z], [0, 0, 0], true);
+				makeMesh(new THREE.CylinderGeometry(0.12, 0.12, 3.2, 8), materials.signPost, [gate.x + 1.95, 1.6, gate.z], [0, 0, 0], true);
+			};
+
+			const addGates = () => gates.forEach(addGate);
+
+			const createCar = () => {
+				const group = new THREE.Group();
+				const wheelMeshes = [];
+				const frontWheels = [];
+				const bodyParts = [];
+				const body = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.9, 5.2), materials.car);
+				body.position.y = 0.86;
+				body.castShadow = true;
+				body.receiveShadow = true;
+				group.add(body);
+				bodyParts.push(body);
+
+				const hood = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.16, 1.05), materials.carTop);
+				hood.position.set(0, 1.4, -1.45);
+				hood.castShadow = true;
+				group.add(hood);
+				bodyParts.push(hood);
+
+				const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.88, 1.75), materials.carTop);
+				cabin.position.set(0, 1.58, 0.08);
+				cabin.castShadow = true;
+				group.add(cabin);
+				bodyParts.push(cabin);
+
+				const windshield = new THREE.Mesh(new THREE.BoxGeometry(1.72, 0.08, 0.92), materials.glass);
+				windshield.position.set(0, 1.86, -0.88);
+				group.add(windshield);
+				bodyParts.push(windshield);
+
+				const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.62, 1.2, 3), materials.cream);
+				arrow.position.set(0, 1.62, -2.35);
+				arrow.rotation.x = Math.PI / 2;
+				arrow.castShadow = true;
+				group.add(arrow);
+				bodyParts.push(arrow);
+
+				const wheelGeometry = new THREE.CylinderGeometry(0.52, 0.52, 0.5, 18);
+				[
+					[-1.82, 0.5, -1.7],
+					[1.82, 0.5, -1.7],
+					[-1.82, 0.5, 1.7],
+					[1.82, 0.5, 1.7],
+				].forEach(([x, y, z]) => {
+					const wheel = new THREE.Mesh(wheelGeometry, materials.tire);
+					wheel.position.set(x, y, z);
+					wheel.rotation.z = Math.PI / 2;
+					wheel.castShadow = true;
+					group.add(wheel);
+					wheelMeshes.push(wheel);
+					if (z < 0) frontWheels.push(wheel);
+				});
+
+				const headlightMaterial = new THREE.MeshBasicMaterial({ color: 0xffdf9f });
+				[-0.62, 0.62].forEach((x) => {
+					const light = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.26, 0.08), headlightMaterial);
+					light.position.set(x, 0.94, -2.64);
+					group.add(light);
+					bodyParts.push(light);
+				});
+
+				[-0.78, 0.78].forEach((x) => {
+					const beam = new THREE.SpotLight(0xffdca2, 1.1, 18, Math.PI / 7, 0.48, 1.2);
+					const target = new THREE.Object3D();
+					beam.position.set(x, 1.05, -2.45);
+					target.position.set(x * 0.5, 0.5, -9);
+					beam.target = target;
+					group.add(beam);
+					group.add(target);
+				});
+
+				const markerRing = new THREE.Mesh(new THREE.TorusGeometry(2.55, 0.09, 10, 48), materials.playerMarker);
+				markerRing.position.set(0, 0.13, 0);
+				markerRing.rotation.x = Math.PI / 2;
+				group.add(markerRing);
+
+				const playerTexture = makePlayerTexture();
+				if (playerTexture) {
+					const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: playerTexture, depthTest: false }));
+					sprite.position.set(0, 5.25, 0);
+					sprite.scale.set(4.6, 1.72, 1);
+					sprite.renderOrder = 12;
+					group.add(sprite);
+				}
+
+				group.userData.wheels = wheelMeshes;
+				group.userData.frontWheels = frontWheels;
+				group.userData.bodyParts = bodyParts;
+				group.userData.markerRing = markerRing;
+				scene.add(group);
+				return group;
+			};
+
+			const createOverlayMaterial = (color, opacity = 1) => {
+				const material = new THREE.MeshBasicMaterial({
+					color,
+					transparent: opacity < 1,
+					opacity,
+				});
+				material.depthTest = false;
+				material.depthWrite = false;
+				return material;
+			};
+
+			const createMobileAvatar = () => {
+				const group = new THREE.Group();
+				const shell = new THREE.Group();
+				group.position.set(0, -12, 0);
+				group.renderOrder = 40;
+				shell.renderOrder = 41;
+				group.add(shell);
+
+				const overlayMaterials = {
+					car: createOverlayMaterial(0xd6453b),
+					top: createOverlayMaterial(0xfff3d5),
+					tire: createOverlayMaterial(0x111111),
+					glass: createOverlayMaterial(0x8fd3e4, 0.92),
+					light: createOverlayMaterial(0xffdfa1),
+					shadow: createOverlayMaterial(0x171511, 0.22),
+				};
+
+				const addPart = (geometry, material, position, rotation = [0, 0, 0]) => {
+					const mesh = new THREE.Mesh(geometry, material);
+					mesh.position.set(position[0], position[1], position[2]);
+					mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
+					mesh.renderOrder = 42;
+					mesh.frustumCulled = false;
+					shell.add(mesh);
+					return mesh;
+				};
+
+				addPart(new THREE.BoxGeometry(9.8, 15.2, 0.36), overlayMaterials.shadow, [0, -0.7, -0.38]);
+				addPart(new THREE.BoxGeometry(8.4, 13.4, 1.25), overlayMaterials.car, [0, 0, 0.1]);
+				addPart(new THREE.BoxGeometry(5.6, 4.8, 1.5), overlayMaterials.top, [0, 0.8, 0.92]);
+				addPart(new THREE.BoxGeometry(4.4, 1.4, 0.18), overlayMaterials.glass, [0, 2.9, 1.74]);
+				addPart(new THREE.BoxGeometry(3.8, 1.15, 0.18), overlayMaterials.glass, [0, -1.5, 1.74]);
+				addPart(new THREE.ConeGeometry(1.1, 2.7, 3), overlayMaterials.top, [0, 7.55, 1.06], [0, 0, Math.PI]);
+
+				const wheelGeometry = new THREE.CylinderGeometry(0.9, 0.9, 0.72, 18);
+				[
+					[-4.58, 4.05, 0.22],
+					[4.58, 4.05, 0.22],
+					[-4.58, -4.15, 0.22],
+					[4.58, -4.15, 0.22],
+				].forEach(([x, y, z]) => {
+					addPart(wheelGeometry, overlayMaterials.tire, [x, y, z], [0, 0, Math.PI / 2]);
+				});
+
+				[-1.55, 1.55].forEach((x) => {
+					addPart(new THREE.BoxGeometry(1.1, 0.5, 0.2), overlayMaterials.light, [x, 6.92, 0.96]);
+				});
+
+				const playerTexture = makePlayerTexture();
+				if (playerTexture) {
+					const spriteMaterial = new THREE.SpriteMaterial({
+						map: playerTexture,
+						depthTest: false,
+						depthWrite: false,
+					});
+					const sprite = new THREE.Sprite(spriteMaterial);
+					sprite.position.set(0, 11.5, 1.1);
+					sprite.scale.set(8.2, 3.05, 1);
+					sprite.renderOrder = 48;
+					sprite.frustumCulled = false;
+					group.add(sprite);
+				}
+
+				group.userData.shell = shell;
+				return group;
+			};
+
+			const car = createCar();
+			const mobileAvatar = createMobileAvatar();
+			overlayScene.add(mobileAvatar);
+			mobileAvatar.visible = false;
+
+			const createFixedBoxCollider = (x, y, z, hx, hy, hz, friction = 0.35) => {
+				if (!physics.world) return null;
+				return physics.world.createCollider(
+					RAPIER.ColliderDesc.cuboid(hx, hy, hz)
+						.setTranslation(x, y, z)
+						.setFriction(friction)
+						.setRestitution(0.02),
+				);
+			};
+
+			const setupPhysics = async () => {
+				await RAPIER.init();
+				physics.world = new RAPIER.World({ x: 0, y: -28, z: 0 });
+				physics.world.timestep = physics.fixedDt;
+				physics.world.numSolverIterations = 8;
+				physics.world.maxCcdSubsteps = 2;
+
+				createFixedBoxCollider(0, -0.28, 0, world.width / 2 + 5, 0.28, world.depth / 2 + 5, 0.04);
+				createFixedBoxCollider(0, 2, -world.depth / 2 - 1.8, world.width / 2 + 5, 2, 1.2, 0.25);
+				createFixedBoxCollider(0, 2, world.depth / 2 + 1.8, world.width / 2 + 5, 2, 1.2, 0.25);
+				createFixedBoxCollider(-world.width / 2 - 1.8, 2, 0, 1.2, 2, world.depth / 2 + 5, 0.25);
+				createFixedBoxCollider(world.width / 2 + 1.8, 2, 0, 1.2, 2, world.depth / 2 + 5, 0.25);
+
+				colliderSpecs.forEach((spec) => {
+					if (spec.type === 'box') {
+						createFixedBoxCollider(
+							spec.x,
+							spec.height / 2,
+							spec.z,
+							spec.width / 2,
+							spec.height / 2,
+							spec.depth / 2,
+							0.28,
+						);
+					}
+					if (spec.type === 'cylinder' && physics.world) {
+						physics.world.createCollider(
+							RAPIER.ColliderDesc.cylinder(spec.height / 2, spec.radius)
+								.setTranslation(spec.x, spec.height / 2, spec.z)
+								.setFriction(0.22)
+								.setRestitution(0.04),
+						);
+					}
+				});
+
+				const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
+					.setTranslation(carState.x, physics.carRadius + 0.04, carState.z)
+					.setLinearDamping(0.1)
+					.setAngularDamping(10)
+					.setCanSleep(false)
+					.setCcdEnabled(true)
+					.lockRotations();
+				physics.carBody = physics.world.createRigidBody(bodyDesc);
+				physics.carCollider = physics.world.createCollider(
+					RAPIER.ColliderDesc.ball(physics.carRadius)
+						.setDensity(1.4)
+						.setFriction(0.02)
+						.setRestitution(0.04),
+					physics.carBody,
+				);
+				physics.ready = true;
+			};
+
+			const isNarrowViewport = () => camera.aspect < 0.75;
+
+			const syncResponsiveMode = () => {
+				const narrow = isNarrowViewport();
+				car.visible = !narrow;
+				mobileAvatar.visible = narrow;
+			};
+
+			const updateCarObject = () => {
+				car.position.set(carState.x, carState.y, carState.z);
+				car.rotation.y = carState.heading;
+				if (mobileAvatar.userData.shell) {
+					mobileAvatar.userData.shell.rotation.z = -carState.heading;
+				}
+			};
+
+			const updateCarVisuals = (dt) => {
+				const speed = Math.hypot(carState.vx, carState.vz);
+				const speedRatio = Math.min(speed / carState.maxSpeed, 1);
+				effects.wheelSpin += (carState.vx * -Math.sin(carState.heading) + carState.vz * -Math.cos(carState.heading)) * dt * 1.7;
+				const visualRoll = -driveInput.steer * speedRatio * 0.16;
+				const visualPitch = -driveInput.throttle * 0.045 + Math.max(-0.06, Math.min(0.08, carState.vy * 0.012));
+				car.rotation.set(visualPitch, carState.heading, visualRoll);
+				car.userData.wheels?.forEach((wheel) => {
+					wheel.rotation.x = effects.wheelSpin;
+				});
+				car.userData.frontWheels?.forEach((wheel) => {
+					wheel.rotation.y = driveInput.steer * 0.34;
+				});
+				if (car.userData.markerRing) {
+					car.userData.markerRing.rotation.z += dt * (1.1 + speedRatio * 2.2);
+				}
+				if (mobileAvatar.userData.shell) {
+					mobileAvatar.userData.shell.scale.setScalar(1 + speedRatio * 0.035);
+				}
+			};
+
+			const resize = () => {
+				if (!mount) return;
+				const rect = mount.getBoundingClientRect();
+				camera.aspect = Math.max(1, rect.width) / Math.max(1, rect.height);
+				const viewHeight = isNarrowViewport() ? 108 : 42;
+				const viewWidth = viewHeight * camera.aspect;
+				camera.left = -viewWidth / 2;
+				camera.right = viewWidth / 2;
+				camera.top = viewHeight / 2;
+				camera.bottom = -viewHeight / 2;
+				camera.updateProjectionMatrix();
+				overlayCamera.left = -50 * camera.aspect;
+				overlayCamera.right = 50 * camera.aspect;
+				overlayCamera.top = 50;
+				overlayCamera.bottom = -50;
+				overlayCamera.updateProjectionMatrix();
+				renderer.setSize(rect.width, rect.height, false);
+				syncResponsiveMode();
+			};
+
+			const clampCar = () => {
+				carState.x = Math.max(-world.width / 2 + 3, Math.min(world.width / 2 - 3, carState.x));
+				carState.z = Math.max(-world.depth / 2 + 3, Math.min(world.depth / 2 - 3, carState.z));
+			};
+
+			const moveToward = (current, target, maxDelta) => {
+				if (Math.abs(target - current) <= maxDelta) return target;
+				return current + Math.sign(target - current) * maxDelta;
+			};
+
+			const dampValue = (current, target, smoothing, dt) => {
+				return current + (target - current) * (1 - Math.exp(-smoothing * dt));
+			};
+
+			const getInputState = () => {
+				const forward = keys.has('arrowup') || keys.has('w');
+				const reverse = keys.has('arrowdown') || keys.has('s');
+				const left = keys.has('arrowleft') || keys.has('a');
+				const right = keys.has('arrowright') || keys.has('d');
+				const jump = keys.has(' ');
+				const boost = keys.has('shift');
+				return {
+					throttle: (forward ? 1 : 0) - (reverse ? 1 : 0),
+					steer: (right ? 1 : 0) - (left ? 1 : 0),
+					jump,
+					boost,
+				};
+			};
+
+			const syncCarStateFromPhysics = () => {
+				if (!physics.carBody) return;
+				const position = physics.carBody.translation();
+				const velocity = physics.carBody.linvel();
+				carState.x = position.x;
+				carState.y = Math.max(0, position.y - physics.carRadius);
+				carState.z = position.z;
+				carState.vx = velocity.x;
+				carState.vy = velocity.y;
+				carState.vz = velocity.z;
+				updateCarObject();
+			};
+
+			const isCarGrounded = () => {
+				if (!physics.world || !physics.carBody) return false;
+				const position = physics.carBody.translation();
+				const velocity = physics.carBody.linvel();
+				const ray = new RAPIER.Ray(position, { x: 0, y: -1, z: 0 });
+				const hit = physics.world.castRay(
+					ray,
+					physics.carRadius + 0.18,
+					true,
+					undefined,
+					undefined,
+					physics.carCollider ?? undefined,
+					physics.carBody,
+				);
+				return Boolean(hit) && velocity.y <= 1.2;
+			};
+
+			const resetCarToRoad = () => {
+				if (!physics.carBody) return;
+				carState.heading = 0;
+				physics.carBody.setTranslation({ x: 0, y: physics.carRadius + 0.12, z: 7 }, true);
+				physics.carBody.setLinvel({ x: 0, y: 0, z: 0 }, true);
+				physics.carBody.setAngvel({ x: 0, y: 0, z: 0 }, true);
+				syncCarStateFromPhysics();
+			};
+
+			const drivePhysicsStep = (stepDt) => {
+				if (!physics.world || !physics.carBody) return;
+				const input = getInputState();
+				const velocity = physics.carBody.linvel();
+				carState.grounded = isCarGrounded();
+				driveInput.throttle = dampValue(driveInput.throttle, input.throttle, input.throttle === 0 ? 8.5 : 5.4, stepDt);
+				driveInput.steer = dampValue(driveInput.steer, input.steer, input.steer === 0 ? 10.5 : 7.6, stepDt);
+				driveInput.boost = dampValue(driveInput.boost, input.boost ? 1 : 0, input.boost ? 7.5 : 5.8, stepDt);
+
+				const boostIntent = driveInput.boost > 0.18 && driveInput.throttle > 0.18 && effects.boostEnergy > 0.02;
+				if (boostIntent) {
+					effects.boostEnergy = Math.max(0, effects.boostEnergy - stepDt * 0.34);
+					effects.cameraShake = Math.max(effects.cameraShake, 0.06);
+				} else {
+					effects.boostEnergy = Math.min(1, effects.boostEnergy + stepDt * 0.18);
+				}
+
+				const horizontalSpeed = Math.hypot(velocity.x, velocity.z);
+				const speedRatio = Math.min(horizontalSpeed / carState.maxSpeed, 1);
+				const turningGrip = Math.max(0.34, Math.min(0.92, Math.sqrt(speedRatio + 0.04)));
+				if (Math.abs(driveInput.steer) > 0.01) {
+					carState.heading -= driveInput.steer * carState.turnRate * turningGrip * stepDt;
+				}
+
+				const forwardX = -Math.sin(carState.heading);
+				const forwardZ = -Math.cos(carState.heading);
+				const rightX = Math.cos(carState.heading);
+				const rightZ = -Math.sin(carState.heading);
+				const forwardSpeed = velocity.x * forwardX + velocity.z * forwardZ;
+				const lateralSpeed = velocity.x * rightX + velocity.z * rightZ;
+				const boostedMaxSpeed = carState.maxSpeed * (boostIntent ? 1.34 : 1);
+				const targetForwardSpeed = driveInput.throttle > 0.03
+					? boostedMaxSpeed * driveInput.throttle
+					: driveInput.throttle < -0.03
+						? -carState.reverseSpeed * Math.abs(driveInput.throttle)
+						: 0;
+				const acceleration = Math.abs(driveInput.throttle) < 0.04
+					? carState.acceleration * 0.76
+					: carState.acceleration * (boostIntent ? 1.26 : 1);
+				const nextForwardSpeed = moveToward(forwardSpeed, targetForwardSpeed, acceleration * stepDt);
+				const lateralGrip = carState.grounded ? (boostIntent ? 5.2 : 8.2) : 1.15;
+				const nextLateralSpeed = lateralSpeed * Math.max(0, 1 - lateralGrip * stepDt);
+				effects.drift = Math.min(1, Math.abs(lateralSpeed) / 8 + Math.abs(driveInput.steer) * speedRatio * 0.72);
+
+				let nextY = velocity.y;
+				const jumpRequested = input.jump || carState.jumpQueued;
+				if (jumpRequested && !carState.jumpHeld && carState.grounded) {
+					nextY = 10.4;
+					carState.grounded = false;
+				}
+				jumpPads.forEach((pad) => {
+					pad.cooldown = Math.max(0, pad.cooldown - stepDt);
+					const dx = carState.x - pad.x;
+					const dz = carState.z - pad.z;
+					if (pad.cooldown <= 0 && carState.grounded && horizontalSpeed > 3.5 && Math.hypot(dx, dz) < pad.radius) {
+						nextY = Math.max(nextY, pad.boost);
+						pad.cooldown = 0.8;
+						carState.grounded = false;
+						effects.cameraShake = Math.max(effects.cameraShake, 0.22);
+						emitBurst(pad.x, 0.85, pad.z, 0x8ed0d6, 18);
+					}
+				});
+				carState.jumpQueued = false;
+				carState.jumpHeld = input.jump;
+
+				physics.carBody.setRotation({ x: 0, y: Math.sin(carState.heading / 2), z: 0, w: Math.cos(carState.heading / 2) }, true);
+				physics.carBody.setLinvel(
+					{
+						x: forwardX * nextForwardSpeed + rightX * nextLateralSpeed,
+						y: nextY,
+						z: forwardZ * nextForwardSpeed + rightZ * nextLateralSpeed,
+					},
+					true,
+				);
+				physics.world.step();
+				syncCarStateFromPhysics();
+
+				const halfWidth = world.width / 2 + 6;
+				const halfDepth = world.depth / 2 + 6;
+				if (Math.abs(carState.x) > halfWidth || Math.abs(carState.z) > halfDepth || carState.y < -8) {
+					resetCarToRoad();
+				}
+			};
+
+			const getActiveGate = () => {
+				return gates.find((gate) => {
+					const dx = carState.x - gate.x;
+					const dz = carState.z - gate.z;
+					return Math.hypot(dx, dz) <= gate.radius;
+				}) ?? null;
+			};
+
+			const getCurrentZone = () => {
+				return routeZones.find((zone) => Math.hypot(carState.x - zone.x, carState.z - zone.z) <= zone.radius) ?? null;
+			};
+
+			const setHud = () => {
+				activeGate = getActiveGate();
+				const currentZone = getCurrentZone();
+				const hasMessage = sceneTime < messageState.until;
+				if (zoneName) {
+					zoneName.textContent = hasMessage
+						? messageState.title
+						: activeGate
+							? `${activeGate.id} Gate`
+							: currentZone?.name ?? 'Blog Town';
+				}
+				if (zoneHint) {
+					zoneHint.textContent = hasMessage
+						? messageState.text
+						: activeGate
+							? `按 Enter 进入${activeGate.zh}`
+							: currentZone?.hint ?? 'W/S 前进/倒车，A/D 转向，Space 跳跃，E 扫描，Shift 加速。';
+				}
+				const speed = Math.hypot(carState.vx, carState.vz);
+				if (speedText) speedText.textContent = `${Math.round(speed * 3.6)} km/h`;
+				if (progressText) {
+					const pulseState = effects.pulseCooldown > 0 ? `${Math.ceil(effects.pulseCooldown * 10) / 10}s` : 'ready';
+					const activeNodeCount = memoryNodes.filter((node) => node.active).length;
+					progressText.textContent = `灵感 ${effects.collected}/${collectibles.length} · 信标 ${activeNodeCount}/${memoryNodes.length} · 扫描 ${pulseState === 'ready' ? '可用' : pulseState}`;
+				}
+				if (pulseButton) pulseButton.classList.toggle('is-cooling', effects.pulseCooldown > 0);
+				if (enterButton) {
+					enterButton.classList.toggle('is-visible', Boolean(activeGate));
+					enterButton.textContent = activeGate ? `Enter ${activeGate.id}` : 'Enter';
+				}
+			};
+
+			const updateGateFeedback = () => {
+				gates.forEach((gate) => {
+					const isActive = gate === activeGate;
+					const pulse = isActive ? 1.08 + Math.sin(sceneTime * 6) * 0.06 : 1;
+					gate.ring?.scale.set(pulse, pulse, pulse);
+					gate.disk?.scale.set(isActive ? 1.03 : 1, 1, isActive ? 1.03 : 1);
+					if (gate.accent) gate.accent.emissiveIntensity = isActive ? 0.58 : 0.18;
+				});
+			};
+
+			const updateCamera = (dt) => {
+				const narrow = isNarrowViewport();
+				const targetPosition = new THREE.Vector3(
+					carState.x + (narrow ? 20 : 22),
+					narrow ? 32 : 28,
+					carState.z + (narrow ? 20 : 22),
+				);
+				effects.cameraShake = Math.max(0, effects.cameraShake - dt * 0.8);
+				if (effects.cameraShake > 0.01) {
+					const shake = effects.cameraShake * (narrow ? 0.35 : 0.7);
+					targetPosition.x += Math.sin(sceneTime * 38) * shake;
+					targetPosition.z += Math.cos(sceneTime * 31) * shake;
+				}
+				camera.position.lerp(targetPosition, 1 - Math.pow(0.001, dt));
+				const lookTarget = new THREE.Vector3(carState.x, 1.1 + Math.min(carState.y, 3), carState.z);
+				camera.lookAt(lookTarget);
+			};
+
+			const lerpAngle = (from, to, amount) => {
+				const diff = Math.atan2(Math.sin(to - from), Math.cos(to - from));
+				return from + diff * amount;
+			};
+
+			const updatePhysics = (dt) => {
+				if (!physics.ready) return;
+				physics.accumulator = Math.min(physics.accumulator + dt, 0.18);
+				let steps = 0;
+				while (physics.accumulator >= physics.fixedDt && steps < 8) {
+					drivePhysicsStep(physics.fixedDt);
+					physics.accumulator -= physics.fixedDt;
+					steps += 1;
+				}
+				setHud();
+				updateGateFeedback();
+			};
+
+			const updateAnimatedProps = () => {
+				animatedProps.forEach((prop, index) => {
+					const delta = 0.012 * prop.spin;
+					if (prop.axis === 'x') prop.mesh.rotation.x += delta;
+					else if (prop.axis === 'y') prop.mesh.rotation.y += delta;
+					else prop.mesh.rotation.z += delta;
+					prop.mesh.position.y = prop.baseY + Math.sin(sceneTime * 2.2 + index) * (prop.wobble ?? 0.08);
+				});
+			};
+
+			const openActiveGate = () => {
+				if (!activeGate) return;
+				const href = activeGate.href === '/' ? `${base}/` : `${base}${activeGate.href}`;
+				window.location.href = href;
+			};
+
+			const normalizeControlKey = (event) => {
+				if (event.code === 'Space') return ' ';
+				return event.key.toLowerCase();
+			};
+
+			const bindControls = () => {
+				window.addEventListener('keydown', (event) => {
+					const key = normalizeControlKey(event);
+					if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd', ' ', 'shift', 'e'].includes(key)) {
+						event.preventDefault();
+						keys.add(key);
+						if (key === ' ' && !event.repeat) carState.jumpQueued = true;
+						if (key === 'e' && !event.repeat) effects.pulseQueued = true;
+					}
+					if (key === 'enter') {
+						event.preventDefault();
+						openActiveGate();
+					}
+				});
+				window.addEventListener('keyup', (event) => {
+					keys.delete(normalizeControlKey(event));
+				});
+
+				document.querySelectorAll('[data-control]').forEach((button) => {
+					const keyMap = { up: 'w', down: 's', left: 'a', right: 'd', jump: ' ', pulse: 'e' };
+					const key = keyMap[button.getAttribute('data-control')];
+					if (!key) return;
+					const press = (event) => {
+						event.preventDefault();
+						button.classList.add('is-pressed');
+						keys.add(key);
+						if (key === ' ') carState.jumpQueued = true;
+						if (key === 'e') effects.pulseQueued = true;
+					};
+					const release = (event) => {
+						event.preventDefault();
+						button.classList.remove('is-pressed');
+						keys.delete(key);
+					};
+					button.addEventListener('pointerdown', press);
+					button.addEventListener('pointerup', release);
+					button.addEventListener('pointerleave', release);
+					button.addEventListener('pointercancel', release);
+				});
+
+				enterButton?.addEventListener('click', openActiveGate);
+				window.addEventListener('resize', resize);
+				window.addEventListener('pagehide', () => cancelAnimationFrame(animationFrame));
+			};
+
+			const animate = () => {
+				const now = performance.now();
+				const dt = Math.min((now - lastFrameTime) / 1000, 0.05);
+				lastFrameTime = now;
+				sceneTime += dt;
+				updatePhysics(dt);
+				updateInteractions(dt);
+				updateAnimatedProps();
+				updateCarVisuals(dt);
+				updateCamera(dt);
+				renderer.clear();
+				renderer.render(scene, camera);
+				if (mobileAvatar.visible) {
+					renderer.clearDepth();
+					renderer.render(overlayScene, overlayCamera);
+				}
+				const carScreen = car.position.clone().project(camera);
+				const carBox = new THREE.Box3().setFromObject(car);
+				const carBoxCenter = carBox.getCenter(new THREE.Vector3()).project(camera);
+				const avatarScreen = mobileAvatar.position.clone().project(overlayCamera);
+				window.__blogGameDebug = {
+					mode: mobileAvatar.visible ? 'mobile-overlay' : 'desktop-world',
+					physicsReady: physics.ready,
+					x: Number(carState.x.toFixed(2)),
+					y: Number(carState.y.toFixed(2)),
+					z: Number(carState.z.toFixed(2)),
+					speed: Number(Math.hypot(carState.vx, carState.vz).toFixed(2)),
+					vy: Number(carState.vy.toFixed(2)),
+					heading: Number(carState.heading.toFixed(3)),
+					grounded: carState.grounded,
+					collected: effects.collected,
+					totalCollectibles: collectibles.length,
+					activeBeacons: memoryNodes.filter((node) => node.active).length,
+					totalBeacons: memoryNodes.length,
+					pulseCooldown: Number(effects.pulseCooldown.toFixed(2)),
+					pulseRings: pulseRings.length,
+					visibleParticles: particles.filter((particle) => particle.visible).length,
+					avatarVisible: mobileAvatar.visible,
+					activeGate: activeGate?.id ?? null,
+					screen: {
+						x: Number(carScreen.x.toFixed(3)),
+						y: Number(carScreen.y.toFixed(3)),
+					},
+					boxScreen: {
+						x: Number(carBoxCenter.x.toFixed(3)),
+						y: Number(carBoxCenter.y.toFixed(3)),
+					},
+					avatarScreen: {
+						x: Number(avatarScreen.x.toFixed(3)),
+						y: Number(avatarScreen.y.toFixed(3)),
+					},
+					canvas: {
+						width: renderer.domElement.width,
+						height: renderer.domElement.height,
+					},
+				};
+				animationFrame = requestAnimationFrame(animate);
+			};
+
+			const startGame = async () => {
+				addLights();
+				addGround();
+				addWorldBiomes();
+				addRoads();
+				addBuildings();
+				addTrees();
+				addDecorations();
+				addMemoryNodes();
+				addCollectibles();
+				addGates();
+				createParticlePool();
+				updateCarObject();
+				bindControls();
+				resize();
+				setHud();
+
+				try {
+					await setupPhysics();
+					syncCarStateFromPhysics();
+					lastFrameTime = performance.now();
+					animate();
+				} catch (error) {
+					console.error(error);
+					if (zoneName) zoneName.textContent = 'Physics failed';
+					if (zoneHint) zoneHint.textContent = '物理引擎加载失败，请刷新页面再试。';
+				}
+			};
+
+			startGame();
+		</script>
+	</body>
+</html>

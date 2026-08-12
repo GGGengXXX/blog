@@ -5,44 +5,19 @@ import Footer from '../../components/Footer.astro';
 import FormattedDate from '../../components/FormattedDate.astro';
 import Header from '../../components/Header.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
+import { categoryLabels, postText } from '../../lib/site-data';
 
 const posts = (await getCollection('blog')).sort(
 	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
 );
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-const categoryLabels = {
-	note: { zh: '笔记', en: 'Notes' },
-	diary: { zh: '日记', en: 'Diary' },
-	idea: { zh: '想法', en: 'Ideas' },
-	essay: { zh: '文章', en: 'Essays' },
-};
-const postText = {
-	'first-post': {
-		title: 'Today I set up the blog first',
-		description: 'An opening diary: build the container first, then let real life move in.',
-		tags: ['Diary', 'Blog', 'Start'],
-	},
-	'second-post': {
-		title: 'Astro blog maintenance checklist',
-		description: 'A future note for adding posts, editing the homepage, deploying, and debugging.',
-		tags: ['Astro', 'GitHub Pages', 'Notes'],
-	},
-	'third-post': {
-		title: 'Idea: write diary entries like experiments',
-		description: 'A diary can record hypotheses, observations, and the next small test.',
-		tags: ['Writing', 'Method', 'Idea'],
-	},
-	'markdown-style-guide': {
-		title: 'Markdown writing style notes',
-		description: 'A short memo for common Markdown patterns used in this blog.',
-		tags: ['Markdown', 'Writing'],
-	},
-	'using-mdx': {
-		title: 'What MDX can be used for',
-		description: 'Put small interactive pieces inside posts so the blog is more than static text.',
-		tags: ['MDX', 'Interactive', 'Astro'],
-	},
-};
+const categoryStats = Object.entries(categoryLabels)
+	.filter(([key]) => key !== 'all')
+	.map(([key, label]) => ({
+		key,
+		label,
+		count: posts.filter((post) => post.data.category === key).length,
+	}));
 ---
 
 <!doctype html>
@@ -50,19 +25,29 @@ const postText = {
 	<head>
 		<BaseHead title={`归档 | ${SITE_TITLE}`} description={SITE_DESCRIPTION} />
 		<style>
-			.archive-head {
+			.archive-layout {
 				display: grid;
-				grid-template-columns: minmax(0, 1fr) 280px;
+				grid-template-columns: minmax(220px, 0.33fr) minmax(0, 1fr);
 				gap: 1rem;
-				margin-bottom: 1rem;
+				align-items: start;
 			}
 
-			.archive-title {
-				padding: clamp(1.25rem, 3vw, 2rem);
+			.archive-hero {
+				grid-column: 1 / -1;
+				display: grid;
+				grid-template-columns: minmax(0, 1fr) minmax(240px, 0.36fr);
+				gap: 1rem;
+			}
+
+			.archive-title,
+			.archive-stat,
+			.archive-aside,
+			.search-panel {
+				padding: clamp(1.15rem, 3vw, 2rem);
 			}
 
 			.archive-title p {
-				max-width: 680px;
+				max-width: 720px;
 				color: var(--muted);
 				font-size: 1.08rem;
 			}
@@ -71,28 +56,105 @@ const postText = {
 				display: flex;
 				flex-direction: column;
 				justify-content: end;
-				padding: 1.25rem;
 				background: var(--inverse);
 				color: var(--inverse-text);
 			}
 
 			.archive-stat strong {
-				font-size: 4rem;
-				line-height: 0.95;
+				font-size: clamp(4rem, 10vw, 7rem);
+				line-height: 0.88;
+			}
+
+			.archive-stat span {
+				color: var(--inverse-muted);
+			}
+
+			.archive-aside {
+				position: sticky;
+				top: 88px;
+				display: grid;
+				gap: 0.8rem;
+			}
+
+			.category-tile {
+				display: grid;
+				grid-template-columns: auto 1fr;
+				gap: 0.75rem;
+				align-items: start;
+				padding: 0.85rem;
+				border: 1px solid var(--line);
+				border-radius: var(--radius);
+				background: var(--panel);
+			}
+
+			.category-dot {
+				width: 0.8rem;
+				height: 0.8rem;
+				margin-top: 0.42rem;
+				border-radius: 999px;
+				background: var(--category-accent);
+			}
+
+			.category-tile strong {
+				display: block;
+			}
+
+			.category-tile span {
+				color: var(--muted);
+				font-size: 0.82rem;
+				line-height: 1.35;
+			}
+
+			.search-panel {
+				display: grid;
+				gap: 0.75rem;
+				margin-bottom: 1rem;
+			}
+
+			.search-field {
+				width: 100%;
+				min-height: 3rem;
+				padding: 0.8rem 1rem;
+				border: 1px solid var(--line);
+				border-radius: 999px;
+				background: var(--panel-strong);
+				color: var(--ink);
+			}
+
+			.filter-row {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 0.45rem;
+			}
+
+			.filter-button {
+				min-height: 2.3rem;
+				padding: 0.48rem 0.78rem;
+				border: 1px solid var(--line);
+				border-radius: 999px;
+				background: transparent;
+				color: var(--ink);
+				cursor: pointer;
+				font-weight: 700;
+			}
+
+			.filter-button[aria-pressed='true'] {
+				background: var(--ink);
+				color: var(--inverse-text);
 			}
 
 			.timeline {
 				display: grid;
 				gap: 0.75rem;
-				margin-top: 1rem;
 			}
 
 			.archive-row {
 				display: grid;
-				grid-template-columns: 132px minmax(0, 1fr) auto;
+				grid-template-columns: 118px minmax(0, 1fr) auto;
 				gap: 1rem;
-				align-items: center;
+				align-items: start;
 				padding: 1rem;
+				color: var(--ink);
 				text-decoration: none;
 				transition:
 					transform 0.2s ease,
@@ -102,24 +164,29 @@ const postText = {
 
 			.archive-row:hover {
 				transform: translateX(4px);
-				border-color: rgba(201, 52, 47, 0.38);
+				border-color: rgba(201, 67, 56, 0.38);
 				box-shadow: var(--soft-shadow);
+			}
+
+			.archive-row.is-hidden {
+				display: none;
 			}
 
 			.archive-date {
 				color: var(--muted);
-				font-size: 0.88rem;
+				font-size: 0.84rem;
 			}
 
 			.archive-row h2 {
-				margin: 0 0 0.25rem;
+				margin: 0 0 0.24rem;
 				color: var(--ink);
 				font-size: clamp(1.35rem, 3vw, 2.35rem);
 			}
 
 			.archive-row p {
-				margin: 0;
-				color: var(--panel-text);
+				margin: 0 0 0.75rem;
+				color: var(--ink-soft);
+				font-size: 0.96rem;
 			}
 
 			.archive-kind {
@@ -129,24 +196,39 @@ const postText = {
 				white-space: nowrap;
 			}
 
-			@media (max-width: 760px) {
-				.archive-head,
+			.empty-state {
+				display: none;
+				padding: 1.2rem;
+				color: var(--muted);
+			}
+
+			.empty-state.is-visible {
+				display: block;
+			}
+
+			@media (max-width: 880px) {
+				.archive-layout,
+				.archive-hero,
 				.archive-row {
 					grid-template-columns: 1fr;
+				}
+
+				.archive-aside {
+					position: static;
 				}
 			}
 		</style>
 	</head>
 	<body>
 		<Header />
-		<main>
-			<section class="archive-head">
+		<main class="archive-layout">
+			<section class="archive-hero">
 				<div class="archive-title surface">
 					<div class="eyebrow">Archive</div>
-					<h1><span data-locale="zh">归档</span><span data-locale="en">Archive</span></h1>
+					<h1><span data-locale="zh">所有记录</span><span data-locale="en">All entries</span></h1>
 					<p>
-						<span data-locale="zh">所有笔记、日记、想法和长一点的文章都会在这里排成时间线。它不需要一开始就完整，重要的是能持续加入。</span>
-						<span data-locale="en">All notes, diary fragments, ideas, and longer essays are arranged here as a timeline. It does not need to be complete at first; it only needs to keep accepting new entries.</span>
+						<span data-locale="zh">这里是博客的时间索引。论文阅读、代码笔记、日记和零散想法都会按时间排好，也可以直接搜关键词。</span>
+						<span data-locale="en">This is the time index for the site. Paper reading, code notes, diary fragments, and loose ideas stay in one searchable trail.</span>
 					</p>
 				</div>
 				<div class="archive-stat surface">
@@ -155,31 +237,144 @@ const postText = {
 				</div>
 			</section>
 
-			<section class="timeline">
+			<aside class="archive-aside surface" aria-label="Archive categories">
+				<div class="eyebrow">Kinds</div>
 				{
-					posts.map((post) => (
-						<a class="archive-row surface" href={`${base}/blog/${post.id}/`}>
-							<div class="archive-date">
-								<FormattedDate date={post.data.pubDate} />
-							</div>
+					categoryStats.map((item) => (
+						<div class="category-tile" style={`--category-accent: ${item.label.accent}`}>
+							<div class="category-dot" aria-hidden="true"></div>
 							<div>
-								<h2><span data-locale="zh">{post.data.title}</span><span data-locale="en">{postText[post.id]?.title ?? post.data.title}</span></h2>
-								<p><span data-locale="zh">{post.data.description}</span><span data-locale="en">{postText[post.id]?.description ?? post.data.description}</span></p>
-								<div class="tag-row">
-									{post.data.tags.map((tag, index) => (
-										<span class="pill"><span data-locale="zh">{tag}</span><span data-locale="en">{postText[post.id]?.tags?.[index] ?? tag}</span></span>
-									))}
-								</div>
+								<strong>
+									{item.count} · <span data-locale="zh">{item.label.zh}</span><span data-locale="en">{item.label.en}</span>
+								</strong>
+								<span>
+									<span data-locale="zh">{item.label.descriptionZh}</span>
+									<span data-locale="en">{item.label.descriptionEn}</span>
+								</span>
 							</div>
-							<div class="archive-kind">
-								<span data-locale="zh">{categoryLabels[post.data.category].zh}</span>
-								<span data-locale="en">{categoryLabels[post.data.category].en}</span>
-							</div>
-						</a>
+						</div>
 					))
 				}
+			</aside>
+
+			<section>
+				<div class="search-panel surface">
+					<label class="sr-only" for="archiveSearch">Search archive</label>
+					<input
+						class="search-field"
+						id="archiveSearch"
+						type="search"
+						placeholder="搜索标题、摘要或标签"
+						autocomplete="off"
+					/>
+					<div class="filter-row" aria-label="Archive filters">
+						{
+							Object.entries(categoryLabels).map(([key, label]) => (
+								<button
+									class="filter-button"
+									type="button"
+									data-filter={key}
+									aria-pressed={key === 'all' ? 'true' : 'false'}
+								>
+									<span data-locale="zh">{label.zh}</span>
+									<span data-locale="en">{label.en}</span>
+								</button>
+							))
+						}
+					</div>
+				</div>
+
+				<div class="timeline" id="archiveTimeline">
+					{
+						posts.map((post) => {
+							const searchText = [
+								post.data.title,
+								postText[post.id]?.title,
+								post.data.description,
+								postText[post.id]?.description,
+								post.data.category,
+								...post.data.tags,
+							]
+								.filter(Boolean)
+								.join(' ')
+								.toLowerCase();
+							return (
+								<a
+									class="archive-row surface"
+									data-category={post.data.category}
+									data-search={searchText}
+									href={`${base}/blog/${post.id}/`}
+								>
+									<div class="archive-date">
+										<FormattedDate date={post.data.pubDate} />
+									</div>
+									<div>
+										<h2>
+											<span data-locale="zh">{post.data.title}</span>
+											<span data-locale="en">{postText[post.id]?.title ?? post.data.title}</span>
+										</h2>
+										<p>
+											<span data-locale="zh">{post.data.description}</span>
+											<span data-locale="en">{postText[post.id]?.description ?? post.data.description}</span>
+										</p>
+										<div class="tag-row">
+											{post.data.tags.map((tag, index) => (
+												<span class="pill">
+													<span data-locale="zh">{tag}</span>
+													<span data-locale="en">{postText[post.id]?.tags?.[index] ?? tag}</span>
+												</span>
+											))}
+										</div>
+									</div>
+									<div class="archive-kind">
+										<span data-locale="zh">{categoryLabels[post.data.category].zh}</span>
+										<span data-locale="en">{categoryLabels[post.data.category].en}</span>
+									</div>
+								</a>
+							);
+						})
+					}
+				</div>
+				<div class="empty-state surface" id="emptyState">
+					<span data-locale="zh">没有匹配的记录。</span>
+					<span data-locale="en">No matching entries.</span>
+				</div>
 			</section>
 		</main>
 		<Footer />
+
+		<script>
+			const searchInput = document.querySelector('#archiveSearch');
+			const filterButtons = document.querySelectorAll('[data-filter]');
+			const rows = document.querySelectorAll('[data-category][data-search]');
+			const emptyState = document.querySelector('#emptyState');
+			let activeFilter = 'all';
+
+			const updateRows = () => {
+				const query = searchInput?.value.trim().toLowerCase() ?? '';
+				let visible = 0;
+
+				rows.forEach((row) => {
+					const categoryMatches = activeFilter === 'all' || row.getAttribute('data-category') === activeFilter;
+					const queryMatches = !query || row.getAttribute('data-search')?.includes(query);
+					const shouldShow = categoryMatches && queryMatches;
+					row.classList.toggle('is-hidden', !shouldShow);
+					if (shouldShow) visible += 1;
+				});
+
+				emptyState?.classList.toggle('is-visible', visible === 0);
+			};
+
+			searchInput?.addEventListener('input', updateRows);
+			filterButtons.forEach((button) => {
+				button.addEventListener('click', () => {
+					activeFilter = button.getAttribute('data-filter') ?? 'all';
+					filterButtons.forEach((item) => {
+						item.setAttribute('aria-pressed', String(item === button));
+					});
+					updateRows();
+				});
+			});
+		</script>
 	</body>
 </html>

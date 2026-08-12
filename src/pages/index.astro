@@ -6,51 +6,27 @@ import Footer from '../components/Footer.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
+import { categoryLabels, experiments, postText, writingPrompts } from '../lib/site-data';
 
 const posts = (await getCollection('blog')).sort(
 	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
 );
 const featured = posts.find((post) => post.data.featured) ?? posts[0];
+const recentPosts = posts.slice(0, 8);
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-const categoryLabels = {
-	all: { zh: '全部', en: 'All' },
-	note: { zh: '笔记', en: 'Notes' },
-	diary: { zh: '日记', en: 'Diary' },
-	idea: { zh: '想法', en: 'Ideas' },
-	essay: { zh: '文章', en: 'Essays' },
-};
-const postText = {
-	'first-post': {
-		title: 'Today I set up the blog first',
-		description: 'An opening diary: build the container first, then let real life move in.',
-		mood: 'Starting',
-		tags: ['Diary', 'Blog', 'Start'],
-	},
-	'second-post': {
-		title: 'Astro blog maintenance checklist',
-		description: 'A future note for adding posts, editing the homepage, deploying, and debugging.',
-		mood: 'Clear',
-		tags: ['Astro', 'GitHub Pages', 'Notes'],
-	},
-	'third-post': {
-		title: 'Idea: write diary entries like experiments',
-		description: 'A diary can record hypotheses, observations, and the next small test.',
-		mood: 'Curious',
-		tags: ['Writing', 'Method', 'Idea'],
-	},
-	'markdown-style-guide': {
-		title: 'Markdown writing style notes',
-		description: 'A short memo for common Markdown patterns used in this blog.',
-		mood: 'Organizing',
-		tags: ['Markdown', 'Writing'],
-	},
-	'using-mdx': {
-		title: 'What MDX can be used for',
-		description: 'Put small interactive pieces inside posts so the blog is more than static text.',
-		mood: 'Experiment',
-		tags: ['MDX', 'Interactive', 'Astro'],
-	},
-};
+const tagCount = new Set(posts.flatMap((post) => post.data.tags)).size;
+const categoryStats = Object.entries(categoryLabels)
+	.filter(([key]) => key !== 'all')
+	.map(([key, label]) => ({
+		key,
+		label,
+		count: posts.filter((post) => post.data.category === key).length,
+	}));
+const baseDate = posts[0]?.data.pubDate ?? new Date();
+const latestDate = new Intl.DateTimeFormat('zh-CN', {
+	month: 'short',
+	day: 'numeric',
+}).format(baseDate);
 ---
 
 <!doctype html>
@@ -58,43 +34,80 @@ const postText = {
 	<head>
 		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
 		<style>
-			.hero {
+			.home-main {
 				display: grid;
-				grid-template-columns: minmax(0, 1.16fr) minmax(320px, 0.84fr);
-				gap: 1rem;
-				align-items: stretch;
-				min-height: 560px;
+				gap: 1.15rem;
 			}
 
-			.hero-copy,
-			.control-panel {
-				padding: clamp(1.3rem, 3vw, 2rem);
+			.hero {
+				display: grid;
+				grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.72fr);
+				gap: 1rem;
+				align-items: stretch;
+				min-height: 600px;
 			}
 
 			.hero-copy {
+				position: relative;
 				display: flex;
 				flex-direction: column;
 				justify-content: space-between;
+				min-height: 100%;
+				padding: clamp(1.35rem, 3.8vw, 2.7rem);
+				overflow: hidden;
 				background:
-					linear-gradient(135deg, var(--panel-strong), var(--panel)),
-					linear-gradient(90deg, rgba(201, 52, 47, 0.1), transparent);
+					linear-gradient(145deg, var(--panel-strong), color-mix(in srgb, var(--paper-deep) 40%, transparent)),
+					var(--panel);
+			}
+
+			.hero-copy::after {
+				content: "";
+				position: absolute;
+				right: clamp(1rem, 5vw, 4rem);
+				bottom: clamp(1rem, 4vw, 3rem);
+				width: clamp(8rem, 23vw, 17rem);
+				aspect-ratio: 1;
 				border: 1px solid var(--line);
-				border-radius: 8px;
-				box-shadow: var(--shadow);
+				border-radius: 999px;
+				background:
+					linear-gradient(90deg, transparent 49%, rgba(var(--black), 0.12) 50%, transparent 51%),
+					linear-gradient(0deg, transparent 49%, rgba(var(--black), 0.12) 50%, transparent 51%);
+				opacity: 0.28;
+				pointer-events: none;
+			}
+
+			.hero-kicker {
+				position: relative;
+				z-index: 1;
 			}
 
 			.hero h1 {
-				max-width: 8.6ch;
-				margin-bottom: 1.2rem;
+				position: relative;
+				z-index: 1;
+				max-width: 9.4ch;
+				margin-bottom: 1rem;
 			}
 
 			.hero-lead {
-				max-width: 690px;
-				color: var(--panel-text);
-				font-size: clamp(1.05rem, 2vw, 1.35rem);
+				position: relative;
+				z-index: 1;
+				max-width: 700px;
+				color: var(--ink-soft);
+				font-size: clamp(1.05rem, 2vw, 1.28rem);
+			}
+
+			.hero-actions {
+				position: relative;
+				z-index: 1;
+				display: flex;
+				flex-wrap: wrap;
+				gap: 0.55rem;
+				margin-top: 1.6rem;
 			}
 
 			.hero-meta {
+				position: relative;
+				z-index: 1;
 				display: grid;
 				grid-template-columns: repeat(3, 1fr);
 				gap: 0.7rem;
@@ -102,107 +115,187 @@ const postText = {
 			}
 
 			.metric {
-				padding: 0.9rem;
+				min-height: 7.2rem;
+				padding: 0.95rem;
 				border: 1px solid var(--line);
-				border-radius: 6px;
-				background: var(--panel);
+				border-radius: var(--radius);
+				background: color-mix(in srgb, var(--paper-soft) 72%, transparent);
 			}
 
 			.metric strong {
 				display: block;
-				font-size: 1.65rem;
-				line-height: 1;
+				font-size: clamp(2rem, 4vw, 3.6rem);
+				line-height: 0.92;
 			}
 
 			.metric span {
 				color: var(--muted);
-				font-size: 0.82rem;
+				font-size: 0.84rem;
+				line-height: 1.28;
 			}
 
-			.control-panel {
+			.side-stack {
+				display: grid;
+				grid-template-rows: 1fr auto;
+				gap: 1rem;
+			}
+
+			.prompt-panel {
+				position: relative;
 				display: flex;
 				flex-direction: column;
 				justify-content: space-between;
+				min-height: 360px;
+				padding: clamp(1.25rem, 3vw, 1.8rem);
+				overflow: hidden;
 				background: var(--inverse);
-				border-radius: 8px;
 				color: var(--inverse-text);
-				box-shadow: var(--shadow);
+			}
+
+			.prompt-panel::after {
+				content: "";
+				position: absolute;
+				inset: auto -4rem -5rem auto;
+				width: 14rem;
+				aspect-ratio: 1;
+				border: 1px solid rgba(255, 248, 232, 0.16);
+				border-radius: 999px;
+				opacity: 0.7;
 			}
 
 			.panel-kicker {
 				color: var(--inverse-muted);
-				font-size: 0.78rem;
+				font-size: 0.76rem;
 				font-weight: 700;
 				letter-spacing: 0.14em;
 				text-transform: uppercase;
 			}
 
 			.prompt {
+				position: relative;
+				z-index: 1;
 				margin: 1.5rem 0;
 				color: var(--inverse-text);
-				font-size: clamp(1.35rem, 3vw, 2.25rem);
+				font-size: clamp(1.45rem, 3vw, 2.35rem);
 				line-height: 1.12;
 			}
 
 			.prompt-button {
+				position: relative;
+				z-index: 1;
 				width: 100%;
+				min-height: 3rem;
 				padding: 0.9rem 1rem;
-				border: 1px solid rgba(250, 248, 241, 0.22);
-				border-radius: 6px;
+				border: 1px solid rgba(255, 248, 232, 0.2);
+				border-radius: 999px;
 				background: var(--red);
-				color: white;
+				color: #fff8e8;
 				cursor: pointer;
 				font: inherit;
+				font-weight: 700;
 				transition:
 					transform 0.2s ease,
 					background 0.2s ease;
 			}
 
 			.prompt-button:hover {
-				background: #e04a44;
+				background: #e35449;
 				transform: translateY(-2px);
+			}
+
+			.mini-map {
+				display: grid;
+				grid-template-columns: repeat(2, 1fr);
+				gap: 0.6rem;
+				padding: 0.9rem;
+			}
+
+			.map-cell {
+				min-height: 5.1rem;
+				padding: 0.72rem;
+				border: 1px solid var(--line);
+				border-radius: var(--radius);
+				background: var(--panel);
+			}
+
+			.map-cell strong {
+				display: block;
+				margin-bottom: 0.18rem;
+				font-size: 1.25rem;
+			}
+
+			.map-cell span {
+				color: var(--muted);
+				font-size: 0.78rem;
+				line-height: 1.25;
 			}
 
 			.featured {
 				display: grid;
-				grid-template-columns: 0.75fr 1.25fr;
-				gap: 1rem;
-				margin-top: 1rem;
+				grid-template-columns: minmax(260px, 0.62fr) minmax(0, 1fr);
+				gap: 0;
 				overflow: hidden;
+			}
+
+			.featured-image {
+				min-height: 360px;
+				background: var(--paper-deep);
 			}
 
 			.featured-image img {
 				width: 100%;
 				height: 100%;
-				min-height: 320px;
 				object-fit: cover;
-				border-radius: 8px 0 0 8px;
+				border-radius: 0;
 			}
 
 			.featured-body {
-				padding: clamp(1.2rem, 3vw, 2rem);
+				display: flex;
+				flex-direction: column;
+				justify-content: space-between;
+				padding: clamp(1.25rem, 3vw, 2rem);
 			}
 
 			.featured h2 {
-				font-size: clamp(2rem, 4vw, 4.4rem);
+				font-size: clamp(2.1rem, 5vw, 5.2rem);
+			}
+
+			.featured p {
+				max-width: 720px;
+				color: var(--ink-soft);
+				font-size: 1.08rem;
+			}
+
+			.section-head {
+				display: grid;
+				grid-template-columns: minmax(0, 1fr) auto;
+				gap: 1rem;
+				align-items: end;
+				margin: 1.4rem 0 0.9rem;
+			}
+
+			.section-head p {
+				max-width: 650px;
+				color: var(--muted);
 			}
 
 			.filters {
 				position: sticky;
-				top: 69px;
-				z-index: 6;
+				top: 78px;
+				z-index: 12;
 				display: flex;
 				flex-wrap: wrap;
 				gap: 0.5rem;
-				margin: 1rem 0;
-				padding: 0.7rem;
+				margin: 0 0 1rem;
+				padding: 0.68rem;
 				background: var(--panel-strong);
 				border: 1px solid var(--line);
-				border-radius: 8px;
-				backdrop-filter: blur(16px);
+				border-radius: var(--radius);
+				backdrop-filter: blur(18px);
 			}
 
 			.filter-button {
+				min-height: 2.5rem;
 				padding: 0.55rem 0.86rem;
 				border: 1px solid var(--line);
 				border-radius: 999px;
@@ -210,7 +303,8 @@ const postText = {
 				color: var(--ink);
 				cursor: pointer;
 				font: inherit;
-				font-size: 0.9rem;
+				font-size: 0.88rem;
+				font-weight: 700;
 			}
 
 			.filter-button[aria-pressed='true'] {
@@ -228,8 +322,9 @@ const postText = {
 				grid-column: span 4;
 				display: flex;
 				flex-direction: column;
-				min-height: 280px;
+				min-height: 300px;
 				padding: 1rem;
+				color: var(--ink);
 				text-decoration: none;
 				transition:
 					transform 0.2s ease,
@@ -239,7 +334,7 @@ const postText = {
 
 			.entry-card:hover {
 				transform: translateY(-4px);
-				border-color: rgba(201, 52, 47, 0.42);
+				border-color: rgba(201, 67, 56, 0.42);
 				box-shadow: var(--shadow);
 			}
 
@@ -253,149 +348,231 @@ const postText = {
 				gap: 1rem;
 				margin-bottom: 1rem;
 				color: var(--muted);
-				font-size: 0.86rem;
+				font-size: 0.84rem;
 			}
 
 			.entry-card h3 {
-				margin-bottom: 0.8rem;
+				margin-bottom: 0.7rem;
 				color: var(--ink);
 			}
 
 			.entry-card p {
-				color: var(--panel-text);
+				color: var(--ink-soft);
+				font-size: 0.96rem;
 			}
 
 			.entry-card .tag-row {
 				margin-top: auto;
 			}
 
-			.diary-strip {
+			.experiment-grid {
 				display: grid;
-				grid-template-columns: 0.85fr 1.15fr;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
 				gap: 1rem;
-				margin-top: 1rem;
 			}
 
-			.diary-card {
-				padding: 1.25rem;
+			.experiment-card {
+				position: relative;
+				min-height: 320px;
+				padding: clamp(1.2rem, 3vw, 1.8rem);
+				overflow: hidden;
+				color: var(--ink);
+				text-decoration: none;
+				transition:
+					transform 0.2s ease,
+					box-shadow 0.2s ease,
+					border-color 0.2s ease;
 			}
 
-			.diary-card summary {
-				cursor: pointer;
-				color: var(--red);
-				font-weight: 700;
+			.experiment-card:hover {
+				transform: translateY(-4px);
+				border-color: rgba(35, 109, 143, 0.38);
+				box-shadow: var(--shadow);
 			}
 
-			.mood-board {
-				display: grid;
-				grid-template-columns: repeat(2, 1fr);
-				gap: 0.7rem;
-				padding: 1.25rem;
-				background: var(--inverse);
-				color: var(--inverse-text);
-			}
-
-			.mood-item {
-				padding: 0.8rem;
+			.experiment-card::after {
+				content: "";
+				position: absolute;
+				right: -3rem;
+				bottom: -3rem;
+				width: 14rem;
+				aspect-ratio: 1;
 				border: 1px solid var(--line);
-				border-radius: 6px;
+				border-radius: 999px;
+				background:
+					linear-gradient(90deg, transparent 48%, rgba(var(--black), 0.1) 49%, rgba(var(--black), 0.1) 51%, transparent 52%),
+					linear-gradient(0deg, transparent 48%, rgba(var(--black), 0.1) 49%, rgba(var(--black), 0.1) 51%, transparent 52%);
+				opacity: 0.45;
 			}
 
-			.mood-item span {
+			.experiment-card h3 {
+				max-width: 9ch;
+				font-size: clamp(2rem, 5vw, 4.2rem);
+			}
+
+			.experiment-card p {
+				position: relative;
+				z-index: 1;
+				max-width: 520px;
+				color: var(--ink-soft);
+			}
+
+			.category-strip {
+				display: grid;
+				grid-template-columns: repeat(4, 1fr);
+				gap: 1rem;
+			}
+
+			.category-card {
+				padding: 1rem;
+				border-top: 5px solid var(--category-accent);
+			}
+
+			.category-card strong {
 				display: block;
-				color: var(--inverse-muted);
-				font-size: 0.78rem;
+				font-size: 2.5rem;
+				line-height: 1;
 			}
 
-			@media (max-width: 920px) {
+			.category-card span {
+				color: var(--muted);
+				font-size: 0.84rem;
+			}
+
+			@media (max-width: 960px) {
 				.hero,
 				.featured,
-				.diary-strip {
+				.experiment-grid {
 					grid-template-columns: 1fr;
 				}
 
-				.featured-image img {
-					border-radius: 8px 8px 0 0;
+				.hero {
+					min-height: auto;
+				}
+
+				.side-stack {
+					grid-template-rows: auto;
 				}
 
 				.entry-card {
 					grid-column: span 6;
 				}
+
+				.category-strip {
+					grid-template-columns: repeat(2, 1fr);
+				}
 			}
 
 			@media (max-width: 640px) {
-				.hero {
-					min-height: auto;
-				}
-
 				.hero-copy,
-				.control-panel {
+				.prompt-panel,
+				.featured-body {
 					padding: 1rem;
 				}
 
 				.hero h1 {
-					font-size: 3.1rem;
+					font-size: 3.2rem;
 				}
 
 				.hero-meta,
-				.mood-board {
+				.mini-map,
+				.category-strip,
+				.section-head {
 					grid-template-columns: 1fr;
+				}
+
+				.filters {
+					position: static;
 				}
 
 				.entry-card {
 					grid-column: 1 / -1;
-				}
-
-				.filters {
-					top: 59px;
 				}
 			}
 		</style>
 	</head>
 	<body>
 		<Header />
-		<main>
+		<main class="home-main">
 			<section class="hero">
-				<div class="hero-copy">
+				<div class="hero-copy surface">
 					<div>
-						<div class="eyebrow">Personal Garden</div>
+						<div class="eyebrow hero-kicker">Personal Garden</div>
 						<h1>
-							<span data-locale="zh">笔记、日记和想法的工作台</span>
-							<span data-locale="en">A desk for notes, diary, and ideas</span>
+							<span data-locale="zh">把日常写成可以探索的地图</span>
+							<span data-locale="en">A map for notes, days, and experiments</span>
 						</h1>
 						<p class="hero-lead">
-							<span data-locale="zh">这里不是一个要一次写完的博客，而是一块可以持续整理的地方。短笔记先放下，日记先留下，想法先不用急着成熟。</span>
-							<span data-locale="en">This is not a blog that needs to be finished in one pass. It is a place to keep sorting: short notes can land, diary fragments can stay, ideas do not have to mature immediately.</span>
+							<span data-locale="zh">这里收集技术笔记、论文阅读、日记和还没成熟的想法。它应该像 Josh 的文章一样好读，也允许像交互式长文一样把概念拖出来玩一玩。</span>
+							<span data-locale="en">This place collects technical notes, paper reading, diary fragments, and immature ideas. It should read comfortably, then occasionally let an idea become something you can play with.</span>
 						</p>
+						<div class="hero-actions">
+							<a class="button-link" href={`${base}/blog/`}>
+								<span data-locale="zh">进入归档</span>
+								<span data-locale="en">Open archive</span>
+							</a>
+							<a class="button-link secondary" href={`${base}/lab/`}>
+								<span data-locale="zh">打开实验室</span>
+								<span data-locale="en">Open lab</span>
+							</a>
+							<a class="button-link secondary" href={`${base}/game/`}>
+								<span data-locale="zh">去游戏页</span>
+								<span data-locale="en">Play the game</span>
+							</a>
+						</div>
 					</div>
 					<div class="hero-meta">
 						<div class="metric">
 							<strong>{posts.length}</strong>
-							<span><span data-locale="zh">篇记录</span><span data-locale="en">entries</span></span>
+							<span><span data-locale="zh">条记录</span><span data-locale="en">entries</span></span>
 						</div>
 						<div class="metric">
-							<strong>{posts.filter((post) => post.data.category === 'diary').length}</strong>
-							<span><span data-locale="zh">篇日记</span><span data-locale="en">diary notes</span></span>
-						</div>
-						<div class="metric">
-							<strong>{new Set(posts.flatMap((post) => post.data.tags)).size}</strong>
+							<strong>{tagCount}</strong>
 							<span><span data-locale="zh">个标签</span><span data-locale="en">tags</span></span>
+						</div>
+						<div class="metric">
+							<strong>{latestDate}</strong>
+							<span><span data-locale="zh">最近更新</span><span data-locale="en">latest update</span></span>
 						</div>
 					</div>
 				</div>
 
-				<aside class="control-panel">
-					<div>
-						<div class="panel-kicker">Today's Prompt</div>
-						<p class="prompt" id="promptText">
-							<span data-locale="zh">今天最值得留下来的一个细节是什么？</span>
-							<span data-locale="en">What detail from today is most worth keeping?</span>
-						</p>
+				<aside class="side-stack">
+					<div class="prompt-panel surface">
+						<div>
+							<div class="panel-kicker">Today's Prompt</div>
+							<p class="prompt" id="promptText">
+								<span data-locale="zh">{writingPrompts[0].zh}</span>
+								<span data-locale="en">{writingPrompts[0].en}</span>
+							</p>
+						</div>
+						<button class="prompt-button" id="promptButton" type="button">
+							<span data-locale="zh">换一个写作提示</span>
+							<span data-locale="en">New writing prompt</span>
+						</button>
 					</div>
-					<button class="prompt-button" id="promptButton" type="button">
-						<span data-locale="zh">换一个写作提示</span>
-						<span data-locale="en">New writing prompt</span>
-					</button>
+					<div class="mini-map surface" aria-label="Site quick map">
+						<div class="map-cell">
+							<strong>Read</strong>
+							<span data-locale="zh">舒适阅读页、目录和进度条</span>
+							<span data-locale="en">Comfortable posts with TOC and progress</span>
+						</div>
+						<div class="map-cell">
+							<strong>Think</strong>
+							<span data-locale="zh">笔记状态、标签和归档</span>
+							<span data-locale="en">Notes, tags, and archive trails</span>
+						</div>
+						<div class="map-cell">
+							<strong>Play</strong>
+							<span data-locale="zh">小实验和驾驶彩蛋</span>
+							<span data-locale="en">Tiny experiments and a driving easter egg</span>
+						</div>
+						<div class="map-cell">
+							<strong>About</strong>
+							<span data-locale="zh">我是谁、在做什么、怎么写</span>
+							<span data-locale="en">Who I am, what I do, how I write</span>
+						</div>
+					</div>
 				</aside>
 			</section>
 
@@ -408,15 +585,17 @@ const postText = {
 							)}
 						</div>
 						<div class="featured-body">
-							<div class="eyebrow">Featured</div>
-							<h2>
-								<span data-locale="zh">{featured.data.title}</span>
-								<span data-locale="en">{postText[featured.id]?.title ?? featured.data.title}</span>
-							</h2>
-							<p>
-								<span data-locale="zh">{featured.data.description}</span>
-								<span data-locale="en">{postText[featured.id]?.description ?? featured.data.description}</span>
-							</p>
+							<div>
+								<div class="eyebrow">Featured Entry</div>
+								<h2>
+									<span data-locale="zh">{featured.data.title}</span>
+									<span data-locale="en">{postText[featured.id]?.title ?? featured.data.title}</span>
+								</h2>
+								<p>
+									<span data-locale="zh">{featured.data.description}</span>
+									<span data-locale="en">{postText[featured.id]?.description ?? featured.data.description}</span>
+								</p>
+							</div>
 							<div class="tag-row">
 								<span class="pill">
 									<span data-locale="zh">{categoryLabels[featured.data.category].zh}</span>
@@ -429,8 +608,8 @@ const postText = {
 									</span>
 								)}
 								<a class="pill" href={`${base}/blog/${featured.id}/`}>
-									<span data-locale="zh">打开这篇</span>
-									<span data-locale="en">Open entry</span>
+									<span data-locale="zh">阅读这篇</span>
+									<span data-locale="en">Read entry</span>
 								</a>
 							</div>
 						</div>
@@ -439,6 +618,24 @@ const postText = {
 			}
 
 			<section aria-labelledby="garden-title">
+				<div class="section-head">
+					<div>
+						<div class="eyebrow">Recent Entries</div>
+						<h2 id="garden-title">
+							<span data-locale="zh">最近放进来的东西</span>
+							<span data-locale="en">Recent things placed here</span>
+						</h2>
+						<p>
+							<span data-locale="zh">日记可以短，笔记可以粗糙，文章可以慢慢修。先保存，再长出结构。</span>
+							<span data-locale="en">Diary can be short, notes can be rough, essays can be revised slowly. Save first, structure later.</span>
+						</p>
+					</div>
+					<a class="button-link secondary" href={`${base}/blog/`}>
+						<span data-locale="zh">完整归档</span>
+						<span data-locale="en">Full archive</span>
+					</a>
+				</div>
+
 				<div class="filters" aria-label="内容筛选">
 					{
 						Object.entries(categoryLabels).map(([key, label]) => (
@@ -455,14 +652,9 @@ const postText = {
 					}
 				</div>
 
-				<div class="eyebrow">Recent Entries</div>
-				<h2 id="garden-title">
-					<span data-locale="zh">最近放进来的东西</span>
-					<span data-locale="en">Recent things placed here</span>
-				</h2>
 				<div class="garden-grid" id="gardenGrid">
 					{
-						posts.map((post) => (
+						recentPosts.map((post) => (
 							<a class="entry-card surface" data-category={post.data.category} href={`${base}/blog/${post.id}/`}>
 								<div class="entry-top">
 									<span>
@@ -493,59 +685,63 @@ const postText = {
 				</div>
 			</section>
 
-			<section class="diary-strip">
-				<details class="diary-card surface" open>
-					<summary>
-						<span data-locale="zh">今天可以怎么写日记</span>
-						<span data-locale="en">How to write today</span>
-					</summary>
-					<p>
-						<span data-locale="zh">不用写完整文章。只写三个点：发生了什么，我怎么理解它，明天要试什么。</span>
-						<span data-locale="en">No need to write a complete essay. Just keep three points: what happened, how you understand it, and what to try tomorrow.</span>
-					</p>
-				</details>
-				<div class="mood-board surface">
-					<div class="mood-item">
-						<span><span data-locale="zh">当前状态</span><span data-locale="en">Current state</span></span>
-						<span data-locale="zh">整理中</span><span data-locale="en">Organizing</span>
-					</div>
-					<div class="mood-item">
-						<span><span data-locale="zh">下一步</span><span data-locale="en">Next step</span></span>
-						<span data-locale="zh">替换真实照片</span><span data-locale="en">Replace real photos</span>
-					</div>
-					<div class="mood-item">
-						<span><span data-locale="zh">适合放入</span><span data-locale="en">Good for</span></span>
-						<span data-locale="zh">读书笔记、项目复盘</span><span data-locale="en">Reading notes, project reviews</span>
-					</div>
-					<div class="mood-item">
-						<span><span data-locale="zh">写作节奏</span><span data-locale="en">Writing rhythm</span></span>
-						<span data-locale="zh">短一点也可以</span><span data-locale="en">Short is fine</span>
+			<section aria-labelledby="lab-title">
+				<div class="section-head">
+					<div>
+						<div class="eyebrow">Interactive Corners</div>
+						<h2 id="lab-title">
+							<span data-locale="zh">把博客做成可以玩的地方</span>
+							<span data-locale="en">Make the blog playable</span>
+						</h2>
 					</div>
 				</div>
+				<div class="experiment-grid">
+					{
+						experiments.map((item) => (
+							<a class="experiment-card surface" href={`${base}${item.href}/`}>
+								<div class="eyebrow">{item.kicker}</div>
+								<h3>
+									<span data-locale="zh">{item.titleZh}</span>
+									<span data-locale="en">{item.titleEn}</span>
+								</h3>
+								<p>
+									<span data-locale="zh">{item.descriptionZh}</span>
+									<span data-locale="en">{item.descriptionEn}</span>
+								</p>
+							</a>
+						))
+					}
+				</div>
+			</section>
+
+			<section class="category-strip" aria-label="Content categories">
+				{
+					categoryStats.map((item) => (
+						<div class="category-card surface" style={`--category-accent: ${item.label.accent}`}>
+							<strong>{item.count}</strong>
+							<span>
+								<span data-locale="zh">{item.label.zh} · {item.label.descriptionZh}</span>
+								<span data-locale="en">{item.label.en} · {item.label.descriptionEn}</span>
+							</span>
+						</div>
+					))
+				}
 			</section>
 		</main>
 		<Footer />
 
-		<script>
-			const prompts = [
-				{ zh: '今天最值得留下来的一个细节是什么？', en: 'What detail from today is most worth keeping?' },
-				{ zh: '最近有什么问题反复出现，但还没有被认真记录？', en: 'What question keeps returning but has not been properly written down?' },
-				{ zh: '如果把今天当成一个实验，结论会是什么？', en: 'If today were an experiment, what would the conclusion be?' },
-				{ zh: '哪一条笔记以后可能会救你十分钟？', en: 'Which note might save you ten minutes later?' },
-				{ zh: '现在最想整理的一团东西是什么？', en: 'What messy thing do you most want to sort out right now?' },
-			];
-
+		<script define:vars={{ writingPrompts }}>
 			const promptText = document.querySelector('#promptText');
 			const promptButton = document.querySelector('#promptButton');
 			let promptIndex = 0;
 
 			promptButton?.addEventListener('click', () => {
-				promptIndex = (promptIndex + 1) % prompts.length;
+				promptIndex = (promptIndex + 1) % writingPrompts.length;
 				if (promptText) {
 					const zh = promptText.querySelector('[data-locale="zh"]');
 					const en = promptText.querySelector('[data-locale="en"]');
-					if (zh) zh.textContent = prompts[promptIndex].zh;
-					if (en) en.textContent = prompts[promptIndex].en;
+					if (zh) zh.textContent = writingPrompts[promptIndex].zh;
+					if (en) en.textContent = writingPrompts[promptIndex].en;
 				}
 			});
 
